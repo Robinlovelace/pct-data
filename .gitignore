@@ -1,9 +1,13 @@
-tsam*
-.Rproj.user
-*rq_ttwa*
-*rf_ttwa*
-infuse_lsoa_lyr*
-infuse_msoa_lyr_2011mapshaped_5%.*
-wu03ew_v2.csv
-ukslope.asc
+# History files
 .Rhistory
+# Example code in package build process
+*-Ex.R
+# R data files from past sessions
+.Rdata
+# RStudio files
+.Rproj.user/
+.Rproj.user
+README.html
+.RData
+pct-data-master
+d.zip
