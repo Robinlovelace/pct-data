@@ -1,0 +1,220 @@
+---
+title: "NPCT model results"
+author: "Robin Lovelace"
+output: 
+  html_document: 
+    fig_caption: yes
+---
+
+
+
+This document was produced automatically at 2015-06-01 23:20:01.
+
+## Introduction
+
+The results of NPCT scenarios are based on a model.
+This document presents information about the input data, model diagnostics,
+run time and information about its outputs.
+
+The aim is to provide further information for transport planners and
+researchers on the origin of results presented in the NPCT's interactive map.
+This document is designed for use by advanced users: some technical knowledge
+is needed to understand all its outputs.
+
+The model driving the NPCT is licensed under the open source MIT License
+and can be modified by others provided attribution to the original.
+
+## Initial parameters
+
+The preset values used to select the study area and filter the flow data
+were as follows:
+
+
+```r
+# Set local authority and ttwa zone names
+la # print the name of the local authority
+```
+
+```
+## [1] "manchester"
+```
+
+```r
+dir.create(paste0("pct-data/", la)) # on a unix machine
+
+# Minimum flow between od pairs, subsetting lines. High means fewer lines.
+mflow <- 30
+mdist <- 10 # maximum euclidean distance (km) for subsetting lines
+min_zones <- 60 # minumum number of zones in study area before buffer used
+buff_dist <- 3 # buffer (km) used to select additional zones (often redundant)
+```
+
+## Input zone data
+
+The input zones area are summarised in this section.
+
+
+```r
+library(rgdal)
+ukmsoas <- shapefile("pct-bigdata/national/msoas.shp")
+
+# Load population-weighted centroids
+cents <- readOGR("pct-bigdata/national/cents.geojson", layer = "OGRGeoJSON")
+
+# Load local authorities and districts
+las <- readOGR(dsn = "pct-bigdata/national/las-pcycle.geojson", layer = "OGRGeoJSON")
+```
+
+
+
+
+The characteristics of zones are as follows:
+
+
+
+- Number of zones: 137, compared with 6791 in England
+- Median area of zones: 196.55 ha, compared with 300 ha in the UK
+
+## Input flow data
+
+
+
+
+
+There are **15375** flows with origins and destinations in the study
+area. Of these, **2312** meet the criteria that 30 people travel
+on flow on a regular basis (a modifiable parameter used
+to reduce the computational requirements
+of the model). That's  **15.04%** for flow lines, accounting for
+**68.75%** of commuters in the study area.
+
+![The study area (dark line), selected zones for training the model (grey) and the administrative zone of interest (red line). The black straight lines represent the most intensive commuting flows.](figure/distance-dist-1.png) 
+
+
+
+## Hilliness of flows
+
+The average hilliness of zones in the study area is
+1.28
+degrees,
+compared with the national average of 
+2.25. This data is displayed in the
+figure below.
+
+![plot of chunk unnamed-chunk-8](figure/unnamed-chunk-8-1.png) 
+
+
+
+## Lines allocated to the road network
+
+We use CycleStreets.net to
+estimate optimal routes. 
+An illustration of these routes is presented below.
+
+
+
+![Sample of the straight and route-lines allocated to the travel network](figure/plot-rlines-1.png) 
+
+
+
+## Distance distributions
+
+The distance distribution of trips in the study area is displayed in the figure below, which compares the result with the distribution of trips nationwide.
+
+![Distance distribution of all trips in study lines (blue) compared with national average (dotted bars)](figure/unnamed-chunk-11-1.png) 
+
+From the nationwide sample of trips, 51.5% of trips are less than 5km.
+
+In the case study area
+64.74% of sampled trips are less than 5km.
+
+Subsetting by distance (set
+to 10 km) and removing inter-zone flows
+further reduces the number of flows from 2312
+to 1100.
+
+
+
+## The flow model
+
+To estimate the potential rate of cycling under different scenarios
+regression models operating at the flow level are used.
+These can be seen in the model script which is available
+[online](https://github.com/npct/pct/blob/master/models/aggregate-model.R).
+
+![National vs local cycling characteristics with hilliness, captured in the model results](figure/unnamed-chunk-13-1.png) 
+
+The correlation between fitted and observed cycling in the model is
+0.4, compared with 0.39 nationally.
+
+The values for the coefficients are presented in the table below.
+
+
+|Model    |(Intercept) |dist_fast |I(dist_fast^0.5) |avslope |dist_fast:avslope |
+|:--------|:-----------|:---------|:----------------|:-------|:-----------------|
+|National |-2.152      |-0.332    |0.692            |-0.724  |0.065             |
+|Local    |-3.56       |-0.504    |2.015            |-1.143  |0.009             |
+
+## Cycling in the study area
+
+
+
+The overall rate of cycling in the flows in the study area
+(after subsetting for distance) is 5.6%, compared a
+rate from the national data (of equally short flows)
+of 5.0%.
+
+## Scenarios
+
+
+
+![Rate of cycling in model scenarios. Note the total percentage cycling is equal to the area under each line.](figure/unnamed-chunk-17-1.png) 
+
+
+
+|dist_band |All                |olc  |cdp_slc |gendereq_slc |dutch_slc |ebike_slc |
+|:---------|:------------------|:----|:-------|:------------|:---------|:---------|
+|(0,2]     |0.164215135199101  |4.48 |12.54   |9.11         |15.26     |18.9      |
+|(2,5]     |0.483166676528016  |6.31 |14.01   |10.87        |16.34     |21.29     |
+|(5,10]    |0.326797230933081  |5.44 |10.82   |10.16        |15.05     |20.32     |
+|(10,20]   |0.0258209573398024 |2.66 |5.67    |7.68         |14.05     |18.22     |
+|Total     |100                |5.63 |12.51   |10.26        |15.68     |20.5      |
+
+
+
+
+![Illustration of flows on travel network](figure/unnamed-chunk-20-1.png) 
+
+
+
+
+```
+## Joining by: "geo_code"
+```
+
+```
+## Warning in left_join_impl(x, y, by$x, by$y): joining factor and character
+## vector, coercing into character vector
+```
+
+```
+## [1] FALSE
+```
+
+
+## Time taken
+
+The time taken to run the analysis for this area is presented below.
+
+
+```r
+end_time <- Sys.time()
+
+end_time - start_time
+```
+
+```
+## Time difference of 27.22712 secs
+```
+
+
