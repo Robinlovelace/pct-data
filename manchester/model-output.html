@@ -8,7 +8,7 @@ output:
 
 
 
-This document was produced automatically at 2015-06-01 23:20:01.
+This document was produced automatically at 2015-06-08 07:42:48.
 
 ## Introduction
 
@@ -40,6 +40,7 @@ la # print the name of the local authority
 ```
 
 ```r
+la <- tolower(la)
 dir.create(paste0("pct-data/", la)) # on a unix machine
 
 # Minimum flow between od pairs, subsetting lines. High means fewer lines.
@@ -201,6 +202,10 @@ of 5.0%.
 ## [1] FALSE
 ```
 
+```
+## Error in eval(expr, envir, enclos): object 'git' not found
+```
+
 
 ## Time taken
 
@@ -214,7 +219,7 @@ end_time - start_time
 ```
 
 ```
-## Time difference of 27.22712 secs
+## Time difference of 29.6123 secs
 ```
 
 
