@@ -1,0 +1,175 @@
+"","Name","All commutes (n)","Growth in cycling (n)"
+"0","Buckinghamshire",256783,5062
+"1","Cambridgeshire",318000,7338
+"2","Cumbria",245045,7022
+"3","Derbyshire",373959,9378
+"4","Devon",357261,8914
+"5","Dorset",192815,4902
+"6","East Sussex",241553,5643
+"7","Essex",680183,14767
+"8","Gloucestershire",302195,8360
+"9","Hampshire",669611,16318
+"10","Hertfordshire",568664,12492
+"11","Kent",692749,16153
+"12","Lancashire",671846,19276
+"13","Leicestershire",326438,8074
+"14","Lincolnshire",336468,8344
+"15","Norfolk",400317,10076
+"16","Northamptonshire",351099,9273
+"17","North Yorkshire",301793,7532
+"18","Nottinghamshire",376997,10393
+"19","Oxfordshire",336930,8493
+"20","Somerset",258828,6898
+"21","Staffordshire",414660,10429
+"22","Suffolk",354346,8988
+"23","Surrey",578900,12464
+"24","Warwickshire",273996,6437
+"25","West Sussex",397884,9757
+"26","Worcestershire",280253,6963
+"27","Hartlepool",37894,1324
+"28","Middlesbrough",54709,1942
+"29","Redcar and Cleveland",56593,1488
+"30","Stockton-on-Tees",87397,2883
+"31","Darlington",49215,1610
+"32","Halton",57771,1879
+"33","Warrington",101235,2918
+"34","Blackburn with Darwen",60726,1902
+"35","Blackpool",61782,2137
+"36","Kingston upon Hull, City of",111269,4415
+"37","East Riding of Yorkshire",159885,3673
+"38","North East Lincolnshire",71144,2666
+"39","North Lincolnshire",78459,2212
+"40","York",99183,3215
+"41","Derby",112844,4079
+"42","Leicester",137987,5330
+"43","Rutland",18195,372
+"44","Nottingham",123743,4518
+"45","Herefordshire, County of",91250,2246
+"46","Telford and Wrekin",78624,2479
+"47","Stoke-on-Trent",108538,3913
+"48","Bath and North East Somerset",85473,2340
+"49","Bristol, City of",210925,7735
+"50","North Somerset",98256,2282
+"51","South Gloucestershire",137271,3699
+"52","Plymouth",117891,4474
+"53","Torbay",57396,1961
+"54","Bournemouth",89720,3173
+"55","Poole",72164,2482
+"56","Swindon",109872,3737
+"57","Peterborough",88414,2845
+"58","Luton",89589,2588
+"59","Southend-on-Sea",81899,2455
+"60","Thurrock",77668,1637
+"61","Medway",127127,3184
+"62","Bracknell Forest",62184,1425
+"63","West Berkshire",82149,1938
+"64","Reading",80199,2555
+"65","Slough",67557,1897
+"66","Windsor and Maidenhead",74499,1597
+"67","Wokingham",81786,1893
+"68","Milton Keynes",128238,3918
+"69","Brighton and Hove",140638,4021
+"70","Portsmouth",97004,3386
+"71","Southampton",113043,3926
+"72","Isle of Wight",59735,1816
+"73","County Durham",228857,5633
+"74","Northumberland",147827,3332
+"75","Cheshire East",182448,4408
+"76","Cheshire West and Chester",161037,3869
+"77","Shropshire",152309,3438
+"78","Cornwall",247893,5684
+"79","Isles of Scilly",NA,NA
+"80","Wiltshire",240956,5850
+"81","Bedford",76270,2109
+"82","Central Bedfordshire",132767,2517
+"83","Bolton",123803,3545
+"84","Bury",88452,2489
+"85","Manchester",214459,7287
+"86","Oldham",96668,3198
+"87","Rochdale",91165,2813
+"88","Salford",107288,3467
+"89","Stockport",137978,4058
+"90","Tameside",102255,3455
+"91","Trafford",111465,3166
+"92","Wigan",150332,4257
+"93","Knowsley",61932,1757
+"94","Liverpool",197457,6829
+"95","St. Helens",78862,2347
+"96","Sefton",NA,NA
+"97","Wirral",140681,3998
+"98","Barnsley",104015,2699
+"99","Doncaster",134460,3780
+"100","Rotherham",115323,3101
+"101","Sheffield",245255,8002
+"102","Gateshead",92238,3027
+"103","Newcastle upon Tyne",119840,4284
+"104","North Tyneside",96409,3107
+"105","South Tyneside",64867,2034
+"106","Sunderland",121920,3744
+"107","Birmingham",425748,13264
+"108","Coventry",138142,4630
+"109","Dudley",142669,4423
+"110","Sandwell",129039,4362
+"111","Solihull",98539,2632
+"112","Walsall",112780,3450
+"113","Wolverhampton",104765,3240
+"114","Bradford",219947,6682
+"115","Calderdale",97063,2966
+"116","Kirklees",193183,5648
+"117","Leeds",356677,10803
+"118","Wakefield",152354,4064
+"119","City of London",NA,NA
+"120","Barking and Dagenham",75493,1613
+"121","Barnet",172470,3608
+"122","Bexley",110680,2390
+"123","Brent",148292,3874
+"124","Bromley",152363,2860
+"125","Camden",110168,3655
+"126","Croydon",173926,3823
+"127","Ealing",165800,3932
+"128","Enfield",138390,3156
+"129","Greenwich",118330,2535
+"130","Hackney",119051,4040
+"131","Hammersmith and Fulham",100148,3207
+"132","Haringey",124845,3158
+"133","Harrow",114755,2493
+"134","Havering",113551,2267
+"135","Hillingdon",130973,3334
+"136","Hounslow",127613,3386
+"137","Islington",107255,3932
+"138","Kensington and Chelsea",82386,2668
+"139","Kingston upon Thames",82434,1943
+"140","Lambeth",167205,5103
+"141","Lewisham",136570,3359
+"142","Merton",105369,2253
+"143","Newham",132787,2899
+"144","Redbridge",125362,2562
+"145","Richmond upon Thames",99916,2084
+"146","Southwark",147995,4929
+"147","Sutton",98207,2487
+"148","Tower Hamlets",121244,4353
+"149","Waltham Forest",121461,2692
+"150","Wandsworth",179439,4982
+"151","Westminster",117303,4319
+"152","Isle of Anglesey",NA,NA
+"153","Gwynedd",NA,NA
+"154","Conwy",NA,NA
+"155","Denbighshire",NA,NA
+"156","Flintshire",NA,NA
+"157","Wrexham",NA,NA
+"158","Ceredigion",NA,NA
+"159","Pembrokeshire",NA,NA
+"160","Carmarthenshire",NA,NA
+"161","Swansea",NA,NA
+"162","Neath Port Talbot",NA,NA
+"163","Bridgend",NA,NA
+"164","The Vale of Glamorgan",NA,NA
+"165","Cardiff",NA,NA
+"166","Rhondda Cynon Taf",NA,NA
+"167","Caerphilly",NA,NA
+"168","Blaenau Gwent",NA,NA
+"169","Torfaen",NA,NA
+"170","Monmouthshire",NA,NA
+"171","Newport",NA,NA
+"172","Powys",NA,NA
+"173","Merthyr Tydfil",NA,NA
