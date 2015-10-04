@@ -45,7 +45,7 @@ la_path <- file.path("pct-data", la)
 if(!dir.exists(la_path)) dir.create(la_path) # create data directory
 
 # Minimum flow between od pairs, subsetting lines. High means fewer lines.
-mflow <- 30
+mflow <- 300
 mdist <- 15 # maximum euclidean distance (km) for subsetting lines
 min_zones <- 60 # minumum number of zones in study area before buffer used
 buff_dist <- 3 # buffer (km) used to select additional zones (often redundant)
@@ -676,13 +676,10 @@ saveRDS(mod_logsqr, paste0("pct-data/", la, "/model.Rds"))
 file.copy("load.Rmd", paste0("pct-data/", la, "/load.Rmd"))
 
 # Create folder in shiny app folder (assuming it's next to pct)
-dir.create(paste0("../pct-shiny/", la))
-from <- list.files("../pct-shiny/coventry", full.names = T)
-file.copy(from = from, to = paste0("../pct-shiny/", la))
-server_text <- readLines(paste0("../pct-shiny/", la, "/server.R"))
+mess <- paste0("cp -r ../pct-shiny/coventry ../pct-shiny/", la_space_esc)
+server_text <- readLines("../pct-shiny/coventry/server.R")
 server_text <- gsub(pattern = "coventry", replacement = la, x = server_text)
 writeLines(server_text, con = paste0("../pct-shiny/", la, "/server.R"))
-system(paste0("cp -r ../pct-shiny/coventry/www ../pct-shiny/", la))
 ```
 
 ## Time taken
