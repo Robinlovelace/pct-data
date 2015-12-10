@@ -45,7 +45,7 @@ region_path <- file.path("pct-data", region)
 if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 
 # Minimum flow between od pairs, subsetting lines. High means fewer lines.
-mflow <- 200
+mflow <- 500
 mdist <- 15 # maximum euclidean distance (km) for subsetting lines
 min_zones <- 60 # minumum number of zones in study area before buffer used
 buff_dist <- 0 # buffer (km) used to select additional zones (often zero = ok)
@@ -229,18 +229,15 @@ if(sum(grepl("l", f)) == 0){
 if(file.exists(paste0("pct-data/", region, "/rf.Rds"))){
   rf <- readRDS(paste0("pct-data/", region, "/rf.Rds")) # if you've loaded them
   rq <- readRDS(paste0("pct-data/", region, "/rq.Rds"))
-  
-  rf$length <- rf$length / 1000 # set length correctly
-  rq$length <- rq$length / 1000
   # l <- readRDS(paste0("pct-data/", region, "/l.Rds"))
   # nrow(rf) == nrow(l)
 } else {
   # see ?line2route from stplanr package
   # mytoken <- "f3fe3d078ac34737" # warning: not a real key 
-  mytoken <- readLines("~/Dropbox/dotfiles/cyclestreets-api-key-rl")
-  Sys.setenv(CYCLESTREET = mytoken)
-  rf <- line2route(l, silent = T)
+  rf <- line2route(l, silent = TRUE)
   rq <- line2route(l, plan = "quietest", silent = T)
+  rf$length <- rf$length / 1000 # set length correctly
+  rq$length <- rq$length / 1000
 }
 saveRDS(rf, paste0("pct-data/", region, "/rf_ttwa.Rds")) # save the routes
 saveRDS(rq, paste0("pct-data/", region, "/rq_ttwa.Rds"))
@@ -619,6 +616,7 @@ if(length(rft) == length(rf)){
   rft <- SpatialLinesDataFrame(rft, rf@data)
 } else print("Error: toptailed lines do not match lines")
 rnet <- overline(rft, "base_olc")
+rf@data["base_olc"] <- NULL
 rft$clc <- NULL
 # test the resulting plot
 plot(rnet, lwd = rnet$base_olc / mean(rnet$base_olc))
