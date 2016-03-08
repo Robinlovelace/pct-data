@@ -11,7 +11,7 @@ output:
 
 ```{r, include=FALSE}
 start_time <- Sys.time() # for timing the script
-source("set-up.R") # pull in packages needed
+source("set-up.R") # load packages needed
 ```
 
 This document was produced automatically at `r start_time`.
@@ -33,22 +33,17 @@ The preset values used to select the study area and filter the origin destinatio
 
 ```{r, echo=FALSE}
 # Create default LA name if none exists
-if(!exists("region")) region <- "Liverpool-City-Region"
+if(!exists("region")) region <- "liverpool-city-region"
 pct_data <- file.path("..", "pct-data")
 pct_bigdata <- file.path("..", "pct-bigdata")
 pct_privatedata <- file.path("..", "pct-privatedata")
+pct_shiny_regions <- file.path("..", "pct-shiny", "regions_www")
 if(!file.exists(pct_data)) stop(paste("The pct-data repository has cannot be found.  Please clone https://github.com/npct/pct-data in", dirname(getwd())))
 if(!file.exists(pct_bigdata)) stop(paste("The pct-bigdata repository has cannot be found.  Please clone https://github.com/npct/pct-bigdata in", dirname(getwd())))
-if(!file.exists(pct_privatedata)){
-  message("The pct_privatedata repository cannot be found")
-  scens <- c("cdp_slc", "dutch_slc", "ebike_slc")
-}else{
-  scens <- c("cdp_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
-}
+scens <- c("govtarget_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
 if(Sys.getenv("CYCLESTREET") == "")
   warning("No CycleStreet API key. See ?cyclestreet_pat")
 ```
-
 
 ```{r, warning=FALSE}
 # Set local authority and ttwa zone names
@@ -56,12 +51,18 @@ region # name of the region
 region_path <- file.path(pct_data, region)
 if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 
-# Minimum flow between od pairs, subsetting lines. High means fewer lines.
-mflow <- 200
-mdist <- 15 # maximum euclidean distance (km) for subsetting lines
-min_zones <- 60 # minumum number of zones in study area before buffer used
+# Minimum flow between od pairs to show. High means fewer lines
+mflow <- 10
+mflow_short <- 10
+
+# Distances
+mdist <- 20 # maximum euclidean distance (km) for subsetting lines
+max_all_dist <- 7 # maximum distance (km) below which more lines are selected
 buff_dist <- 0 # buffer (km) used to select additional zones (often zero = ok)
 buff_geo_dist <- 250 # buffer (m) for removing line start and end points for network
+
+# Save the initial parameters to reproduce results
+save(region, mflow, mflow_short, mdist, max_all_dist, buff_dist, buff_geo_dist, file = file.path(region_path, "params.RData"))
 ```
 
 ## Input zone data
@@ -69,45 +70,51 @@ buff_geo_dist <- 250 # buffer (m) for removing line start and end points for net
 The input zones area are summarised in this section.
 
 ```{r plotzones, message=FALSE, warning=FALSE, results='hide', echo=FALSE}
-ukmsoas <- shapefile(file.path(pct_bigdata, "msoas.shp"))
-ukmsoas <- spTransform(ukmsoas, CRS("+init=epsg:4326"))
-
-# Load population-weighted centroids
-cents <- readOGR(file.path(pct_bigdata, "cents.geojson"), layer = "OGRGeoJSON")
-cents$geo_code <- as.character(cents$geo_code)
+if(!exists("ukmsoas")) # MSOA zones
+  ukmsoas <- readRDS(file.path(pct_bigdata, "ukmsoas-scenarios.Rds"))
+if(!exists("centsa")) # Population-weighted centroids
+  centsa <- readOGR(file.path(pct_bigdata, "cents.geojson"), "OGRGeoJSON")
+centsa$geo_code <- as.character(centsa$geo_code)
+if(!exists("las"))
+  las <- readOGR(dsn = file.path(pct_bigdata, "las-pcycle.geojson"), layer = "OGRGeoJSON")
+if(!exists("las_cents"))
+  las_cents <- SpatialPoints(coordinates(las))
 
 # Load local authorities and districts
-if(!exists("geo_level")) geo_level <- "regions"
-las <- readOGR(dsn = file.path(pct_bigdata, "las-pcycle.geojson"), layer = "OGRGeoJSON")
-if(geo_level == "cua"){
-  regions <- readOGR(dsn = file.path(pct_bigdata, "cuas-mf.geojson"), layer = "OGRGeoJSON")
-  regions$Region <- regions$CTYUA12NM
-}else{
-  regions <- readOGR(file.path(pct_bigdata, "regions.geojson"), layer = "OGRGeoJSON")
+if(!exists("geo_level")) geo_level <- "regional"
+# if you use a custom geometry, regions should already be saved from buildmaster.R
+
+if(!exists("regions")){
+  if (geo_level == "regional")
+    regions <-
+  readOGR(file.path(pct_bigdata, "regions.geojson"), layer = "OGRGeoJSON")
+  else {
+    regions <- readOGR(dsn = file.path(pct_bigdata, "cuas-mf.geojson"), layer = "OGRGeoJSON")
+    regions$Region <- regions$CTYUA12NM
+  }
 }
-las_cents <- SpatialPoints(coordinates(las))
-
-# create region shape (and add buffer in m)
-region_shape <- region_orig <- 
+region_shape <- region_orig <- # create region shape (and add buffer in m)
   regions[grep(pattern = region, x = regions$Region, ignore.case = T),]
-region_shape <- spTransform(region_shape, CRS("+init=epsg:27700"))
-region_shape <- region_shape <- gBuffer(region_shape, width = buff_dist)
-region_shape <- spTransform(region_shape, proj4string(cents))
 
-las_in_region <- rgeos::gIntersects(las_cents, region_shape, byid = T)
+# Only transform if needed
+if(buff_dist > 0){
+  region_shape <- spTransform(region_shape, CRS("+init=epsg:27700"))
+  region_shape <- gBuffer(region_shape, width = buff_dist * 1000)
+  region_shape <- spTransform(region_shape, proj4string(centsa))
+}
+
+las_in_region <- gIntersects(las_cents, region_shape, byid = T)
 las_in_region <- las_in_region[1,]
-summary(las_in_region)
 las_in_region <- las[las_in_region,]
-
-proj4string(cents) <- proj4string(regions) # assign correct CRS
-sel_region <- grepl(pattern = region, x = regions$Region, ignore.case = T)
 ```
 
-The selected region was `r as.character(regions$Region[sel_region ])`.
+The selected region is `r region`.
 
 ```{r, include=FALSE}
 # select msoas of interest
-cents <- cents[region_shape,]
+if(proj4string(region_shape) != proj4string(centsa))
+  region_shape <- spTransform(region_shape, proj4string(centsa))
+cents <- centsa[region_shape,]
 zones <- ukmsoas[ukmsoas@data$geo_code %in% cents$geo_code, ]
 ```
 
@@ -125,27 +132,40 @@ mzarea <- round(median(gArea(zones_wgs, byid = T) / 10000), 1) # average area of
 ## Input flow data
 
 ```{r, echo=FALSE, results='hide'}
+# load flow dataset, depending on availability
+if(!exists("flow_nat"))
+  flow_nat <- readRDS(file.path(pct_bigdata, "pct_lines_oneway_shapes.Rds"))
+summary(flow_nat$dutch_slc / flow_nat$All)
 
-flow <- readRDS(file.path(pct_bigdata, "flow.Rds"))
-
-if(file.exists(pct_privatedata)) flow <- readRDS(file.path(pct_privatedate, "flowsex-merged.Rds"))
+if(!exists("rf_nat"))
+  rf_nat <- readRDS(file.path(pct_bigdata, "rf.Rds"))
+if(!exists("rq_nat"))
+  rq_nat <- readRDS(file.path(pct_bigdata, "rq.Rds"))
 # Subset by zones in the study area
-o <- flow$Area.of.residence %in% cents$geo_code
-d <- flow$Area.of.workplace %in% cents$geo_code
-flow <- flow[o & d, ] # subset OD pairs with o and d in study area
-sel <- flow$All > mflow # subset OD pairs by n. people using it
+o <- flow_nat$Area.of.residence %in% cents$geo_code
+d <- flow_nat$Area.of.workplace %in% cents$geo_code
+flow <- flow_nat[o & d, ] # subset OD pairs with o and d in study area
+n_flow_region <- nrow(flow)
+n_commutes_region <- sum(flow$All)
 ```
 
 ```{r distance-dist, echo=FALSE, fig.cap="The study region (thick black border), selected zones (grey), the administrative zone region (red line) and local authorities (blue line). The black straight green represent the most intensive commuting OD pairs.", echo=FALSE, message=FALSE, warning=FALSE}
+# Calculate line lengths (in km)
+# coord_from <- coordinates(cents[match(flow$Area.of.residence, cents$geo_code),])
+# coord_to <- coordinates(cents[match(flow$Area.of.workplace, cents$geo_code),])
+# Euclidean distance (km)
+# flow$dist <- geosphere::distHaversine(coord_from, coord_to) / 1000
+# flow <- flow[flow$dist > 0,] # remove 0 dist flows - only if < 0 exit
+
+# Subset lines
+# subset OD pairs by n. people using it
+sel_long <- flow$All > mflow & flow$dist < mdist 
+sel_short <- flow$dist < max_all_dist & flow$All > mflow_short
+sel <- sel_long | sel_short
 flow <- flow[sel, ]
-
-l <- od2line(flow = flow, zones = cents)
-
-# Calculate line lengths
-l <- spTransform(l, CRS("+init=epsg:27700"))
-l$dist <- gLength(l, byid = T) / 1000 # Euclidean distance
-dsel <- l$dist < mdist
-l <- spTransform(l, proj4string(cents))
+# summary(flow$dist)
+# l <- od2line(flow = flow, zones = cents)
+l <- flow
 
 plot(zones, col = "lightgrey")
 plot(regions, add = T)
@@ -156,133 +176,74 @@ lines(l[l$All > 100,], col = "green")
 ```
 
 ```{r, echo=FALSE}
-l <- l[dsel,]
-l <- l[l$dist > 0, ] # to remove OD pairs of 0 length
-```
-
-```{r, echo=FALSE}
 # nrow(flow) # how many OD pairs in the study area?
 # proportion of OD pairs in min-flow based subset
-pmflow <- round(sum(sel) / nrow(flow) * 100, 1)
+pmflow <- round(nrow(l) / n_flow_region * 100, 1)
 # % all trips covered
-pmflowa <- round(sum(flow$All[sel]) / sum(flow$All) * 100, 1)
+pmflowa <- round(sum(l$All) / n_commutes_region * 100, 1)
 ```
 
-There are **`r nrow(flow)`** OD pairs with origins and destinations in the study
-area. Of these, **`r sum(sel)`** meet the criteria that at least `r mflow` people 
-reported travelling between these two areas in the 2011 Census.
-That is  **`r pmflow`%** of OD pairs, accounting for
-**`r pmflowa`%** of commutes in the study area.
+There are **`r n_flow_region`** OD pairs with origins and destinations in the study
+area. Of these, `r sum(sel_long)` meet the criteria that at least `r mflow` people travelled to work along OD pairs up to `r mdist` km in the 2011 Census. The additional selection criteria that at least `r mflow_short` people travelled to work along OD pairs up to `r max_all_dist` km was met by `r sum(sel_short)` OD pairs.
+Adding those (overlapping) selection criteria resulted in
+**`r nrow(flow)`** or **`r pmflow`%** of all inter-zone OD pairs were selected in the region, accounting for
+**`r pmflowa`%** of inter-zone commutes in the study area.
 
 ## Hilliness of OD pairs
 
 The average hilliness of zones in the study area is
-`r round(100 * mean(rf$av_incline), 1)`
+`r round(100 * mean(zones$avslope), 1)`
 percent.
 
 ```{r, echo = FALSE}
 # # It used to say - see below. What to replace this with?
-# compared with the national average of 
+# compared with the national average of
 # `r round(mean(ukmsoas$avslope, na.rm = T), 1)`. This data is displayed in the
 # figure below.
 tm_shape(zones) +
   tm_fill("avslope", n = 3, palette = "Oranges")
 ```
 
-```{r, echo=FALSE}
-# Hilliness of OD pairs
-# (calculated as the average gradient of the zone
-# of the flow's origin and destination, in degrees)
-# is 
-# `r round(mean(flow$avslope * flow$All / mean(flow$All), na.rm = T), 2)`.
-# The UK
-# average is xx degrees
-```
-
 ## Lines allocated to the road network
 
-We use CycleStreets.net to estimate optimal routes. 
+We use CycleStreets.net to estimate optimal routes.
 An illustration of these routes is presented below.
 
-```{r flow-vars, echo=FALSE}
-# # # # # # # # # # # # # # # # # #
-# Calculate flow-level variables: #
-# distances and olc for ag. model #
-# # # # # # # # # # # # # # # # # #
-
-# Calculate distances (eventually use route distance)
-
-# # # # # # # # # # # # # # #
-# Allocate OD pairs2network #
-# Warning: time-consuming!  #
-# Needs CycleStreet.net API #
-# # # # # # # # # # # # # # #
-
-rf <- line2route(l, silent = TRUE)
-rq <- line2route(l, plan = "quietest", silent = T)
-rf$length <- rf$length / 1000 # set length correctly
-rq$length <- rq$length / 1000
-# saveRDS(rf, file.path(pct_data, region, "rf.Rds")) # save the routes
-# saveRDS(rq, file.path(pct_data, region, "rq.Rds"))
-
-# which paths succeeded (use the line ids)
-path_ok <- row.names(l) %in% row.names(rf) &
-                   row.names(l) %in% row.names(rq)
-# summary(path_ok)
-  
-l <- l[path_ok,]
-rf <- rf[path_ok,]
-rq <- rq[path_ok,]
-
-# # for testing: reduce to top n lines
-# top_n <- 100 # e.g. top 5, 10, 100
-# sel_top <- order(l$All, decreasing = T)[1:top_n]
-# l_old <- l
-# l <- l[sel_top,]
-# rf <- rf[sel_top,]
-# rq <- rq[sel_top,]
-
-# # small manual test to check the data is ok
-# i = 2
-# plot(rf[i,])
-# plot(l[i,], add = T)
-# plot(rq[i,], add = T)
-# row.names(l[i,])
-# row.names(rf[i,])
-
-# Process route data
-proj4string(rf) <- proj4string(l)
-proj4string(rq) <- proj4string(l)
+```{r flow-vars}
+rf_nat$id <- gsub('(?<=[0-9])E', ' E', rf_nat$id, perl=TRUE) # temp fix to ids
+rq_nat$id <- gsub('(?<=[0-9])E', ' E', rq_nat$id, perl=TRUE)
+rf <- rf_nat[rf_nat$id %in% l$id,]
+rq <- rq_nat[rf_nat$id %in% l$id,]
 ```
 
 ```{r plot-rlines, warning=FALSE, echo = FALSE, fig.cap="Straight and route-lines allocated to the travel network"}
-library(sp)
-plot(l)
-lines(rf, col = "red")
-lines(rq, col = "green")
+plot(l[seq(1, nrow(l), length.out = 100),])
+lines(rf[seq(1, nrow(l), length.out = 100),], col = "red")
+lines(rq[seq(1, nrow(l), length.out = 100),], col = "green")
 ```
 
-```{r check-line, warning=FALSE, echo = FALSE, fig.cap="Check a single line"}
+```{r check-line, warning=FALSE, echo = FALSE, fig.cap="Check the final line"}
 plot(l[nrow(l),])
 lines(rf[nrow(l),], col = "red")
 lines(rq[nrow(l),], col = "green")
 ```
 
-Of the lines allocated to the route network, `sum(!path_ok)` failed.
-
 ```{r, echo=FALSE}
-
-# Allocate route factors to OD pairs
-# nz <- which(l$dist > 0) # non-zero lengths = nz
-l$dist_quiet <- l$dist_fast <- l$cirquity <- l$distq_f <- NA
-if(!nrow(rf) == nrow(l))
-  print("Warning, lines and routes are different lengths")
+# Allocate route characteristics to OD pairs
 l$dist_fast <- rf$length
 l$dist_quiet <- rq$length
+l$time_fast <- rf$time
+l$time_quiet <- rq$time
 l$cirquity <- rf$length / l$dist
 l$distq_f <- rq$length / rf$length
-l$avslope <- atan(rf$av_incline)  # in radians
-l$avslope <- l$avslope * 180 / pi # convert to degrees
+l$avslope <- rf$av_incline
+l$co2_saving <- rf$co2_saving
+l$calories <- rf$calories
+l$busyness <- rf$busyness
+l$avslope_q <- rq$av_incline
+l$co2_saving_q <- rq$co2_saving
+l$calories_q <- rq$calories
+l$busyness_q <- rq$busyness
 ```
 
 ## Distance distributions
@@ -307,11 +268,11 @@ ggplot(histdf) +
     position = "identity", colour = "black", binwidth = 0.5) +
   scale_fill_manual(values = c("lightblue", NA)) +
   scale_linetype(c(1, 2), guide = "none") +
-  scale_y_continuous() + 
-  # scale_y_continuous(labels = percent) + 
-  xlab("Route distance (km)") + 
-  ylab("Proportion of trips in each band") + 
-  xlim(c(0,13)) + 
+  scale_y_continuous() +
+  # scale_y_continuous(labels = percent) +
+  xlab("Route distance (km)") +
+  ylab("Proportion of trips in each band") +
+  xlim(c(0,13)) +
   theme_bw()
 
 pl5kmuk <- round(sum(luk$All[luk$dist_fast < 5]) /
@@ -331,20 +292,13 @@ further reduces the number of OD pairs from `r sum(sel)`
 to `r nrow(l)`.
 
 ```{r, echo=FALSE}
-# a = 11
-# plot(l[a,])
-# lines(rf[a,], col = "red")
-# lines(rq[a,], col = "green")
-
-# # # # # # # # # # # # # #
-# Estimates slc from olc  #
-# # # # # # # # # # # # # #
-
-l$clc <- l$Bicycle / l$All   
-l$clcar <- (l$Car_driver + l$Car_passenger) / l$All
-l$clfoot <- l$Foot / l$All   #% walk population
-
-flow <- l@data
+# # # # # # # # # # # # # # #
+# # Estimates slc from olc  #
+# # # # # # # # # # # # # # #
+# 
+# l$clc <- l$Bicycle / l$All
+# l$clcar <- (l$Car_driver + l$Car_passenger) / l$All
+# l$clfoot <- l$Foot / l$All   #% walk population
 ```
 
 ## The flow model
@@ -354,20 +308,12 @@ regression models operating at the flow level are used.
 These can be seen in the model script which is available
 [online](https://github.com/npct/pct/blob/master/models/aggregate-model.R).
 
-```{r, echo=FALSE}
-source("models/aggregate.R") # this model creates the variable 'slc'
-cormod <- cor(flow$clc, mod_logsqr$fitted.values) # crude indication of goodness-of-fit
-# summary(mod_logsqr)
-
-mod_nat <- readRDS(file.path(pct_bigdata, "mod_logsqr_national_8.Rds"))
-```
-
 ## Cycling in the study area
 
 ```{r, echo=FALSE}
 rcycle <- round(100 * sum(l$Bicycle) / sum(l$All), 1)
-rcarusers <- round (100 * sum(l$Car_driver+l$Car_passenger) / sum(l$All), 1)
-
+# rcarusers <- round (100 * sum(l$Car_driver+l$Car_passenger) / sum(l$All), 1)
+rcarusers <- NA # when we don't have car drivers
 natcyc <- sum(luk$Bicycle) / sum(luk$All)
 ```
 
@@ -379,167 +325,49 @@ of 5.0%.
 ## Scenarios
 
 ```{r, include=FALSE}
-l$slc <- mod_logsqr$fitted.values
-l$base_olc <- l$Bicycle
-l$base_slc <- l$slc * l$All
-l$base_sic <- l$base_slc - l$base_olc
-
-# # # # # # # # # # # # #
-# Additional scenarios  #
-# # # # # # # # # # # # #
-
-# Additional scenarios
-# Replace with source("models/aggregate-model-dutch|gendereq|ebike.R"))
-set.seed(2015)
-l$npred <- exp(predict(mod_nat, flow))
-
-l$cdp_slc <-l$All * (l$clc + l$npred) # may be more that 1
-l$cdp_sic <- l$cdp_slc - l$Bicycle
-
-# gendereq scenario
-has_private_data <- file.exists(pct_privatedata)
-if(has_private_data){
-  p_trips_male <- mean(las_in_region$clc_m) # proportion of bicycle trips by males
-  
-  clc_m <- l$Bicycle * p_trips_male
-  pmale_c <- clc_m / l$Male
-  slc_gendereq_f <- l$Female * pmale_c
-  slc_gendereq <- clc_m + slc_gendereq_f
-  
-  l$gendereq_slc <- slc_gendereq
-  l$gendereq_sic <- l$gendereq_slc - l$base_olc
-}else{
-  l$gendereq_slc <- NA
-  l$gendereq_sic <- NA
-}
-# Dutch scenario - coefficients calculated from Dutch NTS by A. Goodman
-mod_dutch <- mod_nat
-mod_dutch$coefficients[1] <- -0.3253
-mod_dutch$coefficients[2] <- -0.3543
-mod_dutch$coefficients[3] <- 0.7750
-l$dutch_slc <- l$All * exp(predict(mod_dutch, flow))
-l$dutch_sic <- l$dutch_slc - l$base_olc
-
-mod_ebike <- mod_dutch
-mod_ebike$coefficients[2] <- -0.3
-
-l$ebike_slc <- l$All * exp(predict(mod_ebike, flow))
-l$ebike_sic <- l$ebike_slc - l$base_olc
-
-dfscen <- dplyr::select(l@data, contains("slc"), All, olc = Bicycle, dist_fast)
-dfscen <- dfscen[-which(names(dfscen) == "slc")]
-dfscen <- dfscen[-which(names(dfscen) == "base_slc")]
-# head(dfscen)
-
+dfscen <- dplyr::select(l@data, contains("slc"), -contains("co2"), All, olc = Bicycle, dist_fast)
 dfsp <- gather(dfscen, key = scenario, value = slc, -dist_fast)
-# head(dfsp)
 dfsp$scenario <- factor(dfsp$scenario)
- summary(dfsp$scenario)
-dfsp$scenario <- 
-  factor(dfsp$scenario, levels = levels(dfsp$scenario)[c(5, 4, 1, 2, 3, 6)])
-scalenum <- sum(l$All) 
+dfsp$scenario <-
+  factor(dfsp$scenario, levels = levels(dfsp$scenario)[c(1, 3, 2, 4, 5, 6)])
+levels(dfsp$scenario)[1] <- c("All modes")
+levels(dfsp$scenario)[6] <- c("Current (2011)")
+scalenum <- sum(l$All)
 ```
 
 ```{r, echo=FALSE, warning=FALSE, fig.cap="Rate of cycling in model scenarios. Note the total percentage cycling is equal to the area under each line."}
+levels(dfsp$scenario) <- gsub("_slc", "", levels(dfsp$scenario))
+levels(dfsp$scenario) <- R.utils::capitalize(levels(dfsp$scenario))
 ggplot(dfsp) +
   geom_freqpoly(aes(dist_fast, weight = slc,
-    color = scenario), binwidth = 1) + 
-  ylab("Total number of trips") +
+    color = scenario), binwidth = 1) +
+  ylab("Number of trips per day") +
   xlab("Route distance (km)") +
   scale_color_discrete(name = "Mode and\nscenario\n(cycling)") +
   xlim(c(0,12)) +
   theme_bw()
 
-dfsp$dist_band <- cut(dfsp$dist_fast, c(0, 2, 5, 10, 20))
-dfsum <- summarise(group_by(dfsp, scenario, dist_band), Percent = sum(slc) / sum(l$All))
-dfsum$Percent <- dfsum$Percent 
-dfspread <- spread(dfsum, scenario, Percent)
-dfspread$dist_band <- as.character(dfspread$dist_band)
-dfspreadf <- c("Total", round(colSums(dfspread[2:ncol(dfspread)])* 100, 1))
-dfspread[3:ncol(dfspread)] <- do.call(cbind, apply(dfspread[3:ncol(dfspread)], 2, function(x) round(x / dfspread[2] * 100, 1)))
-dfspread <- rbind(dfspread, dfspreadf)
-# dfspread <- dfspread[c(1, 2, 7, 3, 4, 5, 6)]
-dfspread$All <- round(as.numeric(dfspread$All) * 100, 1)
-dfspread$All[nrow(dfspread)] <- dfspread$All[nrow(dfspread)] / 100
+dfsp$dist_band <- cut(dfsp$dist_fast, c(0, 2, 5, 10, 40))
+dfsum <- group_by(dfsp, scenario, dist_band) %>% 
+  summarise(percent = sum(slc))
+all_scen <- group_by(dfsp, scenario) %>% summarise(all = sum(slc))
+dfsum <- data.frame(dfsum)
+dfspread <- spread(dfsum, dist_band, percent)
+dfspread[2:ncol(dfspread)] <- t(apply(dfspread[2:ncol(dfspread)], 1, function(x) x / sum(x)  * 100))
+names(dfspread) <- c("Scenario", "|  0 - 2 km", "|  2 - 5 km", "|  5 - 10 km", "|  10 + km")
+dfspread$`|  N. trips/day` <- round(all_scen$all)
+dfspread$`|  % trips cycled` <- all_scen$all / all_scen$all[1] * 100
+dfspread$`|  % trips cycled`[1] <- NA
 ```
 
-The table below illustrates the same information by distance band.
+The table below illustrates the same information in terms of the % of cyclists in each scenario by each distance band.
 
 ```{r, echo=FALSE}
-# names(dfspread)[1:3] <- c("Distance band", 	"All modes", "Observed level (OLC)")
-kable(dfspread, format = "html", digits = 1)
-```
-
-
-```{r, include=FALSE}
-# # # # # # # # # # # # # # # # # #
-# Extract area-level commute data #
-# # # # # # # # # # # # # # # # # #
-
-for(i in 1:nrow(cents)){
-
-  # all OD pairs originating from centroid i
-  j <- which(l$Area.of.residence == cents$geo_code[i])
-
-  cents$base_olc[i] <- sum(l$Bicycle[j])
-  cents$base_slc[i] <- sum(l$base_slc[j])
-  cents$base_sic[i] <- sum(l$base_sic[j])
-
-  # values for scenarios
-  cents$cdp_slc[i] <- sum(l$cdp_slc[j])
-  cents$cdp_sic[i] <- sum(l$cdp_sic[j])
-  
-  cents$gendereq_slc[i] <- sum(l$gendereq_slc[j])
-  cents$gendereq_sic[i] <- sum(l$gendereq_sic[j])
-
-  cents$dutch_slc[i] <- sum(l$dutch_slc[j])
-  cents$dutch_sic[i] <- sum(l$dutch_sic[j])
-
-  cents$ebike_slc[i] <- sum(l$ebike_slc[j])
-  cents$ebike_sic[i] <- sum(l$ebike_sic[j])
-
-  cents$av_distance[i] <- sum(l$dist[j] * l$All[j])  / sum(l$All[j])
-  cents$cirquity[i] <- sum(l$cirquity[j] * l$All[j], na.rm = T )  / sum(l$All[j])
-  cents$distq_f[i] <- sum(l$distq_f[j] * l$All[j], na.rm = T )  / sum(l$All[j])
-}
-
-# names(l) # which line names can be added for non-directional OD pairs?
-# dput(c(names(l)[addids], c("cdp_slc", "cdp_sic")))
-addidsn <- c("All", "Work.mainly.at.or.from.home", "Underground..metro..light.rail..tram", 
-"Train", "Bus..minibus.or.coach", "Taxi", "Motorcycle..scooter.or.moped", 
-"Driving.a.car.or.van", "Passenger.in.a.car.or.van", "Bicycle", 
-"On.foot", "Other.method.of.travel.to.work", "base_olc", "base_slc", 
-"base_sic", "gendereq_slc", "gendereq_sic", "dutch_slc", "dutch_sic", 
-"ebike_slc", "ebike_sic", "cdp_slc", "cdp_sic")
-addids <- which(names(l) %in% addidsn)
-# addids <- c(3:14, 23:31)
-# summary(l[addids])
-
-
-# Aggregate bi-directional OD pairs
-
-# Subset by zone bounding box
-# l <- l[as.logical(gContains(zone, l, byid = T)),]
-# nrow(l)
-
-# 4: by aggregating 2 way OD pairs
-l <- onewayid(l, attrib = c(addids))
-
-l$clc <- l$Bicycle / l$All
-l$slc <- l$base_slc / l$All
-
-nrow(l)
-idsel <- row.names(l)
-rf <- rf[row.names(rf) %in% idsel,]
-rq <- rq[row.names(rf) %in% idsel,]
-
-# Sanity test
-head(l@data[1:5])
+kable(dfspread, format = "html", digits = 1, caption = "Summary statistics of the rate of cycling by distance bands (percentages) and the total number of cycle trips per for each scenario (far right column).", row.names = F)
 ```
 
 ```{r, echo=FALSE, results='hide', fig.cap="Illustration of OD pairs on travel network"}
-zbuf <- spTransform(region_shape, CRS("+init=epsg:4326"))
-plot(zbuf)
+plot(region_shape)
 plot(zones, add = T)
 points(cents, col = "red")
 lines(l, col = "black")
@@ -547,78 +375,31 @@ lines(rq, col = "green")
 lines(rf, col = "blue")
 ```
 
-## Flow model results
-
-To estimate the potential rate of cycling under different scenarios
-regression models operating at the flow level are used.
-These can be seen in the model script which is available
-[online](https://github.com/npct/pct/blob/master/models/aggregate-model.R).
-
-```{r, echo=FALSE, fig.cap="National vs local cycling characteristics with hilliness, captured in the model results"}
-justdist1 <- data.frame(
-  dist_fast = 1:20,
-  avslope = 1,
-  type = "Flat")
-
-justdist2 <- justdist1
-justdist2$avslope <- 1.5
-justdist2$type <- "Hilly"
-
-justdist <- rbind(justdist1, justdist2) # for prediction
-justdist$model <- "National"
-
-justdist5 <- justdist6 <- justdist7 <- justdist # replicate
-justdist5$model <- "Local"
-justdist6$model <- "Dutch"
-justdist7$model <- "Ebike"
-
-justdist$npred <- exp(predict(mod_nat, justdist))
-justdist5$npred <- exp(predict(mod_logsqr, justdist))
-justdist6$npred <- exp(predict(mod_dutch, justdist))
-justdist7$npred <- exp(predict(mod_ebike, justdist))
-
-justdist <- rbind(justdist, justdist5, justdist6, justdist7)
-
-ggplot(justdist) +
-  geom_line(aes(dist_fast, npred, color = model, linetype = type),
-    size = 1.5) +
-  xlab("Route distance (km)") + ylab("Expected proportion cycling") +
-  theme_bw()
-
-dfcos <- round(rbind(coef(mod_nat), coef(mod_logsqr)), 3)
-dfcos <- cbind(Model = c("National", "Local"), dfcos)
-```
-
-The correlation between fitted and observed cycling in the model is
-`r round(cormod, 2)`, compared with 0.39 nationally.
-
-The values for the coefficients are presented in the table below.
-
-```{r, echo=FALSE}
-dfcos <- data.frame(dfcos)
-names(dfcos) <- c("Model", "Alpha", "Distance", "Dist^0.5", "Hills", "Dist/Hills")
-kable(dfcos, digits = 3)
-```
-
 ## Network analysis
 
-Now we aggregate the overlapping routes to create a route network.  
+Now we aggregate the overlapping routes to create a route network.
 The value of each segment in the network corresponds to the total number of cyclists who we estimate to use the segment.
 
 ```{r, echo=FALSE, message=FALSE, warning=FALSE, fig.cap="The route network, with widths proportional to the current estimated number of commuter cyclists"}
-# Scenario names - may need updating
-# nrow(l) == nrow(rf)
 
-# proj4string(rf)
-rft <- toptail(rf, toptail_dist = buff_geo_dist)
+rft <- rf
+# Stop rnet lines going to centroid (optional)
+rft <- toptailgs(rf, toptail_dist = buff_geo_dist)
 if(length(rft) == length(rf)){
   row.names(rft) <- row.names(rf)
   rft <- SpatialLinesDataFrame(rft, rf@data)
 } else print("Error: toptailed lines do not match lines")
-rft$base_olc <- l$base_olc
-rnet <- overline(rft, "base_olc")
+rft$Bicycle <- l$Bicycle
+
+# Simplify line geometries (if mapshaper is available)
+# this greatly speeds up the build (due to calls to overline)
+# needs mapshaper installed and available to system():
+# see https://github.com/mbloch/mapshaper/wiki/
+rft <- ms_simplify(rft, keep = 0.1)
+rnet <- overline(rft, "Bicycle")
+# object.size(rnet)
 # test the resulting plot
-plot(rnet, lwd = rnet$base_olc / mean(rnet$base_olc))
+plot(rnet, lwd = rnet$Bicycle / mean(rnet$Bicycle))
 for(i in scens){
   rft@data[i] <- l@data[i]
   rnet_tmp <- overline(rft, i)
@@ -627,7 +408,6 @@ for(i in scens){
 }
 if(!"gendereq_slc" %in% scens)
   rnet$gendereq_slc <- NA
-# plot(rnet, lwd = rnet$cdp_slc / mean(rnet$base_olc))
 ```
 
 
@@ -636,44 +416,59 @@ if(!"gendereq_slc" %in% scens)
 # Save the data #
 # # # # # # # # #
 
-# Rename columns
-l@data <- rename(l@data, Home = Area.of.residence, Work = Area.of.workplace)
-names(zones@data)
+# Remove/change private/superfluous variables
+l$Male <- l$Female <- l$From_home <- l$calories <-
+  l$co2_saving_q <-l$calories_q <- l$busyness_q <- 
+  # data used in the model - superflous for pct-shiny
+  l$dist_fastsq <- l$dist_fastsqrt <- l$ned_avslope <- 
+  l$interact <- l$interactsq <- l$interactsqrt <- NULL
 
+# Make average slope a percentage
+l$avslope <- l$avslope * 100
+
+# Creation of clc current cycling variable (temp)
+l$clc <- l$Bicycle / l$All * 100
 
 # Transfer cents data to zones
-c_in_z <- names(cents) == "avslope"
-zones@data <- left_join(zones@data, cents@data[,!c_in_z])
-# summary(cents)
-# summary(zones)
+cents@data$avslope <- NULL
+cents@data <- left_join(cents@data, zones@data)
 
-# 
+# Remove NAN numbers (cause issues with geojson_write)
+na_cols  <- which(names(zones) %in%
+  c("av_distance", "cirquity", "distq_f", "base_olcarusers", "gendereq_slc", "gendereq_sic"))
+for(ii in na_cols){
+  zones@data[[ii]][is.nan(zones@data[[ii]])] <- NA
+}
+
 # # Save objects
 # Save objects # uncomment these lines to save model output
 if(exists("isolated")) file.create(file.path(pct_data, region, "isolated"))
 saveRDS(zones, file.path(pct_data, region, "z.Rds"))
+geojson_write( ms_simplify(zones, keep = 0.1), file = file.path(pct_data, region, "z"))
 saveRDS(cents, file.path(pct_data, region, "c.Rds"))
 saveRDS(l, file.path(pct_data, region, "l.Rds"))
 saveRDS(rf, file.path(pct_data, region, "rf.Rds"))
 saveRDS(rq, file.path(pct_data, region, "rq.Rds"))
 saveRDS(rnet, file.path(pct_data, region, "rnet.Rds"))
-saveRDS(mod_logsqr, file.path(pct_data, region, "model.Rds"))
 
-# 
 # # Save the script that loaded the lines into the data directory
 file.copy("load.Rmd", file.path(pct_data, region, "load.Rmd"))
 
-# Create folder in shiny app folder (assuming it's next to pct)
-dir.create(file.path("..", "pct-shiny", region))
-file.copy("../pct-shiny/leeds/ui.R", file.path("..", "pct-shiny", region, "ui.R"))
-server_text <- readLines("../pct-shiny/leeds/server.R")
-server_text <- gsub(pattern = "leeds", replacement = region, x = server_text)
-writeLines(server_text, con = file.path("..", "pct-shiny", region, "server.R"))
+# Create folder in shiny app folder
+region_dir <- file.path(file.path(pct_shiny_regions, region))
+dir.create(region_dir)
+ui_text <- 'source("../../ui-base.R", local = T, chdir = T)'
+server_text <- paste0('startingCity <- "', region, '"\n',
+                      'shinyRoot <- file.path("..", "..")\n',
+                      'source(file.path(shinyRoot, "server-base.R"), local = T)')
+write(ui_text, file = file.path(region_dir, "ui.R"))
+write(server_text, file = file.path(region_dir, "server.R"))
+file.symlink(file.path("..", "..","www"), region_dir)
 ```
 
- ## Time taken
+## Time taken
 
-The time taken to run the analysis for this area is presented below.
+The time taken to run the analysis for this area is presented below:
 
 ```{r}
 end_time <- Sys.time()
