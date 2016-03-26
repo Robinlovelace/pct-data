@@ -87,8 +87,7 @@ las <- readOGR(dsn = file.path(pct_bigdata, "las-pcycle.geojson"), layer = "OGRG
 if(geo_level == "cua"){
   regions <- readOGR(dsn = file.path(pct_bigdata, "cuas-mf.geojson"), layer = "OGRGeoJSON")
   regions$Region <- regions$CTYUA12NM
-}
-if(geo_level == "la"){
+} if(geo_level == "la"){
   regions <- readOGR(file.path(pct_bigdata, "regions.geojson"), layer = "OGRGeoJSON")
 } 
 
@@ -103,8 +102,7 @@ las_in_region <- rgeos::gIntersects(las_cents, region_shape, byid = T)
 las_in_region <- las_in_region[1,]
 las_in_region <- las[las_in_region,]
 
-# Assign correct CRS
-proj4string(cents) <- proj4string(regions) 
+proj4string(cents) <- proj4string(regions) # assign correct CRS
 sel_region <- grepl(pattern = region, x = regions$Region, ignore.case = T)
 ```
 
@@ -112,7 +110,6 @@ The selected region was `r as.character(regions$Region[sel_region ])`.
 
 ```{r, include=FALSE}
 # select msoas of interest
-proj4string(region_shape) <- proj4string(cents)
 cents <- cents[region_shape,]
 zones <- ukmsoas[ukmsoas@data$geo_code %in% cents$geo_code, ]
 ```
@@ -359,7 +356,7 @@ logit_p <- -3.2941 + (-0.4659 * l$dist_fast) + (1.3430 * dist_fastsqrt) + (0.006
 # + (2.4783 * dutch) + (-0.0706 * dutch*dist_fast) + (0.0286 * ebike) + (0.0902 * ebike*dist_fast) + (-0.0014 * ebike*dist_fastsq) 
 
 l$slc <- exp(logit_p) / (1 + exp(logit_p))
-cormod <- cor(l$clc, l$slc) # crude indication of goodness-of-fit
+cormod <- cor(flow$clc, l$slc) # crude indication of goodness-of-fit
 # summary(mod_logsqr)
 
 mod_nat <- readRDS(file.path(pct_bigdata, "mod_logsqr_national_8.Rds"))
@@ -382,6 +379,7 @@ of 5.0%.
 ## Scenarios
 
 ```{r, include=FALSE}
+l$slc <- mod_logsqr$fitted.values
 l$base_olc <- l$Bicycle
 l$base_slc <- l$slc * l$All
 l$base_sic <- l$base_slc - l$base_olc
@@ -393,7 +391,7 @@ l$base_sic <- l$base_slc - l$base_olc
 # Additional scenarios
 # Replace with source("models/aggregate-model-dutch|gendereq|ebike.R"))
 set.seed(2015)
-l$npred <- exp(predict(mod_nat, l@data))
+l$npred <- exp(predict(mod_nat, flow))
 
 l$cdp_slc <-l$All * (l$clc + l$npred) # may be more that 1
 l$cdp_sic <- l$cdp_slc - l$Bicycle
@@ -419,13 +417,13 @@ mod_dutch <- mod_nat
 mod_dutch$coefficients[1] <- -0.3253
 mod_dutch$coefficients[2] <- -0.3543
 mod_dutch$coefficients[3] <- 0.7750
-l$dutch_slc <- l$All * exp(predict(mod_dutch, l@data))
+l$dutch_slc <- l$All * exp(predict(mod_dutch, flow))
 l$dutch_sic <- l$dutch_slc - l$base_olc
 
 mod_ebike <- mod_dutch
 mod_ebike$coefficients[2] <- -0.3
 
-l$ebike_slc <- l$All * exp(predict(mod_ebike, l@data))
+l$ebike_slc <- l$All * exp(predict(mod_ebike, flow))
 l$ebike_sic <- l$ebike_slc - l$base_olc
 
 dfscen <- dplyr::select(l@data, contains("slc"), All, olc = Bicycle, dist_fast)
@@ -543,7 +541,8 @@ head(l@data[1:5])
 ```
 
 ```{r, echo=FALSE, results='hide', fig.cap="Illustration of OD pairs on travel network"}
-plot(region_shape)
+zbuf <- spTransform(region_shape, CRS("+init=epsg:4326"))
+plot(zbuf)
 plot(zones, add = T)
 points(cents, col = "red")
 lines(l, col = "black")
@@ -657,9 +656,7 @@ c_in_z <- names(cents) == "avslope"
 zones@data <- left_join(zones@data, cents@data[,!c_in_z])
 
 # Remove NAN numbers (cause issues with geojson_write)
-na_cols  <- names(zones) %in%
-  c("av_distance", "cirquity", "distq_f", "base_olcarusers", "gendereq_slc", "gendereq_sic")
-zones@data[, na_cols] <- NA
+zones@data[is.nan(zones$av_distance), c("av_distance", "cirquity", "distq_f", "base_olcarusers")] <- NA
 
 # # Save objects
 # Save objects # uncomment these lines to save model output
