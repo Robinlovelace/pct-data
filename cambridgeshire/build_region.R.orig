@@ -2,8 +2,12 @@ source("set-up.R") # load packages needed
 
 # Create default LA name if none exists
 start_time <- Sys.time() # for timing the script
+<<<<<<< HEAD
 
 if(!exists("region")) region <- "cambridgeshire"
+=======
+if(!exists("region")) region <- "west-yorkshire"
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 pct_data <- file.path("..", "pct-data")
 pct_bigdata <- file.path("..", "pct-bigdata")
 pct_privatedata <- file.path("..", "pct-privatedata")
@@ -20,8 +24,13 @@ if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 # Minimum flow between od pairs to show. High means fewer lines
 params <- NULL
 
+<<<<<<< HEAD
 params$mflow <- 500
 params$mflow_short <- 500
+=======
+params$mflow <- 30
+params$mflow_short <- 30
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 
 # Distances
 params$mdist <- 20 # maximum euclidean distance (km) for subsetting lines
@@ -56,19 +65,30 @@ if(!exists("rq_nat"))
 o <- flow_nat$Area.of.residence %in% cents$geo_code
 d <- flow_nat$Area.of.workplace %in% cents$geo_code
 flow <- flow_nat[o & d, ] # subset OD pairs with o and d in study area
+<<<<<<< HEAD
 params$n_flow_region <- nrow(flow)
+=======
+n_flow_region <- nrow(flow)
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 n_commutes_region <- sum(flow$All)
 
 # Subset lines
 # subset OD pairs by n. people using it
+<<<<<<< HEAD
 params$sel_long <- flow$All > params$mflow & flow$dist < params$mdist
 params$sel_short <- flow$dist < params$max_all_dist & flow$All > params$mflow_short
 sel <- params$sel_long | params$sel_short
+=======
+sel_long <- flow$All > params$mflow & flow$dist < params$mdist
+sel_short <- flow$dist < params$max_all_dist & flow$All > params$mflow_short
+sel <- sel_long | sel_short
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 flow <- flow[sel, ]
 # summary(flow$dist)
 # l <- od2line(flow = flow, zones = cents)
 l <- flow
 
+<<<<<<< HEAD
 # add geo_label of the lines
 l$geo_label_o = left_join(l@data["Area.of.residence"], zones@data[c("geo_code", "geo_label")], by = c("Area.of.residence" = "geo_code"))[[2]]
 l$geo_label_d = left_join(l@data["Area.of.workplace"], zones@data[c("geo_code", "geo_label")], by = c("Area.of.workplace" = "geo_code"))[[2]]
@@ -77,6 +97,12 @@ l$geo_label_d = left_join(l@data["Area.of.workplace"], zones@data[c("geo_code", 
 params$pmflow <- round(nrow(l) / params$n_flow_region * 100, 1)
 # % all trips covered
 params$pmflowa <- round(sum(l$All) / n_commutes_region * 100, 1)
+=======
+# proportion of OD pairs in min-flow based subset
+pmflow <- round(nrow(l) / n_flow_region * 100, 1)
+# % all trips covered
+pmflowa <- round(sum(l$All) / n_commutes_region * 100, 1)
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 
 rf_nat$id <- gsub('(?<=[0-9])E', ' E', rf_nat$id, perl=TRUE) # temp fix to ids
 rq_nat$id <- gsub('(?<=[0-9])E', ' E', rq_nat$id, perl=TRUE)
@@ -197,6 +223,7 @@ saveRDS(l, file.path(pct_data, region, "l.Rds"))
 saveRDS(rf, file.path(pct_data, region, "rf.Rds"))
 saveRDS(rq, file.path(pct_data, region, "rq.Rds"))
 saveRDS(rnet, file.path(pct_data, region, "rnet.Rds"))
+<<<<<<< HEAD
 write.csv(x = l@data, file.path(pct_data, region, "line-data.csv"))
 write.csv(zones@data, file.path(pct_data, region, "area-data.csv"))
 
@@ -207,6 +234,13 @@ saveRDS(params, file.path(pct_data, region, "params.Rds"))
 
 # Save the initial parameters to reproduce results
 
+=======
+
+# Save the initial parameters to reproduce results
+run_time <- Sys.time() - start_time
+nrow_flow <- nrow(flow)
+save(params, run_time, pmflow, pmflowa, n_flow_region, nrow_flow, sel_short, sel_long, file = file.path(region_path, "params.RData"))
+>>>>>>> 2f1ced4c76c288cfe0307aa155214144ed2a8613
 # # Save the script that loaded the lines into the data directory
 file.copy("build_region.R", file.path(pct_data, region, "build_region.R"))
 
