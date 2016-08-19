@@ -1,0 +1,17 @@
+# History files
+.Rhistory
+# Example code in package build process
+*-Ex.R
+# R data files from past sessions
+.Rdata
+# RStudio files
+.Rproj.user/
+.Rproj.user
+README.html
+.RData
+pct-data-master
+d.zip
+rf_ttwa.Rds
+rq_ttwa.Rds
+man/
+man2/
