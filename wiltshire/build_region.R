@@ -1,37 +1,17 @@
-source("set-up.R") # load packages needed
-
-# Create default LA name if none exists
+# source("set-up.R") # load packages needed - commented as run in buildmaster
 start_time <- Sys.time() # for timing the script
 
-if(!exists("region")) region <- "cambridgeshire"
-pct_data <- file.path("..", "pct-data")
-pct_bigdata <- file.path("..", "pct-bigdata")
-pct_privatedata <- file.path("..", "pct-privatedata")
-pct_shiny_regions <- file.path("..", "pct-shiny", "regions_www")
+if(!exists("region")) region <- "cambridgeshire" # create LA name if none exists,  then set-up data repo
+
 if(!file.exists(pct_data)) stop(paste("The pct-data repository cannot be found.  Please clone https://github.com/npct/pct-data in", dirname(getwd())))
 if(!file.exists(pct_bigdata)) stop(paste("The pct-bigdata repository cannot be found.  Please clone https://github.com/npct/pct-bigdata in", dirname(getwd())))
 scens <- c("govtarget_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
 
 # Set local authority and ttwa zone names
-region # name of the region
 region_path <- file.path(pct_data, region)
 if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 
-# Minimum flow between od pairs to show. High means fewer lines
-params <- NULL
-
-params$mflow <- 10
-params$mflow_short <- 10
-
-# od pair selecion criteria
-params$mdist <- 20 # maximum euclidean distance (km) for subsetting lines
-params$max_all_dist <- 7 # maximum distance (km) below which more lines are selected
-params$buff_dist <- 0 # buffer (km) used to select additional zones (often zero = ok)
-
-# parameters related to the route network
-params$buff_geo_dist <- 100 # buffer (m) for removing line start and end points for network
-params$min_rnet_length <- 2 # minimum segment length for the Route Network to display - low currently due to holes in routes
-params$rft_keep = 0.12
+params$rft_keep = 0.05 # how aggressively to simplify the route network (higher values - longer to run but rnet less likely to fail)
 if(!exists("ukmsoas")){ # MSOA zones
   ukmsoas <- readRDS(file.path(pct_bigdata, "ukmsoas-scenarios.Rds"))
   ukmsoas$avslope = ukmsoas$avslope * 100
@@ -114,6 +94,28 @@ if(nrow(rf) != nrow(rq)) next()
 rf <- remove_cols(rf, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
 rq <- remove_cols(rq, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
 
+# create rq_increase variable
+rq$rq_incr <- rq$length / rf$length
+
+###########################################
+#Temp error checks
+############################################
+print(paste0("l and rf are equal ",nrow(l) == nrow(rf)))
+'%!in%' <- function(x,y)!('%in%'(x,y))
+allid <- c(rf$id,l$id)
+allid <-allid[!duplicated(allid)]
+compare <- data.frame(id=allid,l=0,rf=0,tot=0)
+for(i in 1:nrow(compare)){
+  if(compare$id[i] %in% l$id){compare$l[i] = 1}
+  if(compare$id[i] %in% rf$id){compare$rf[i] = 1}
+  compare$tot[i] <- compare$l[i] + compare$rf[i]
+}
+compare_sub <- compare[which(compare$tot < 2),]
+write.csv(compare_sub,file.path(pct_data, region, "mismachedlines.csv"))
+
+#############################################
+
+
 # Allocate route characteristics to OD pairs
 l$dist_fast <- rf$length / 1000 # convert m to km
 l$dist_quiet <- rq$length / 1000 # convert m to km
@@ -124,24 +126,19 @@ l$distq_f <- rq$length / rf$length
 l$avslope <- rf$av_incline * 100
 l$avslope_q <- rq$av_incline * 100
 
-rft_too_large <-  too_large(rf)
+# Simplify line geometries (if mapshaper is available)
+# this greatly speeds up the build (due to calls to overline)
+# needs mapshaper installed and available to system():
+# see https://github.com/mbloch/mapshaper/wiki/
 rft <- rf
 rft@data <- cbind(rft@data, l@data[c("bicycle", scens)])
-rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = T, no_repair = rft_too_large)
+rft <- ms_simplify(input = rft, keep = params$rft_keep, method = "dp", keep_shapes = TRUE, no_repair = FALSE, snap = TRUE)
 # Stop rnet lines going to centroid (optional)
 # rft <- toptailgs(rf, toptail_dist = params$buff_geo_dist) # commented as failing
 # if(length(rft) == length(rf)){
 #   row.names(rft) <- row.names(rf)
 #   rft <- SpatialLinesDataFrame(rft, rf@data)
 # } else print("Error: toptailed lines do not match lines")
-
-# Simplify line geometries (if mapshaper is available)
-# this greatly speeds up the build (due to calls to overline)
-# needs mapshaper installed and available to system():
-# see https://github.com/mbloch/mapshaper/wiki/
-if (rft_too_large){
-  file.create(file.path(pct_data, region, "rft_too_large"))
-}
 
 source("R/generate_rnet.R") # comment out to avoid slow rnet build
 # rnet = readRDS(file.path(pct_data, region, "rnet.Rds")) # uncomment if built
@@ -157,7 +154,7 @@ rnet = rnet[rnet$govtarget_slc > 0,] # remove segments with zero cycling flows
 rnet_osgb <- spTransform(rnet, CRS("+init=epsg:27700"))
 rnet_lengths = gLength(rnet_osgb, byid = T)
 summary(rnet_lengths)
-rnet = rnet[rnet_lengths > params$min_rnet_length,]
+# rnet = rnet[rnet_lengths > params$min_rnet_length,]
 
 proj4string(rnet) = proj4string(zones)
 
@@ -167,6 +164,10 @@ rnet@data[rnet$Singlezone == 0, grep(pattern = "upto", names(rnet))] = NA
 
 if(!"gendereq_slc" %in% scens)
   rnet$gendereq_slc <- NA
+
+
+# create id variable
+rnet$id <- 1:nrow(rnet)
 
 # # # # # # # # #
 # Save the data #
@@ -180,14 +181,14 @@ cents@data$avslope <- NULL
 cents@data <- left_join(cents@data, zones@data)
 
 # # Save objects
-l@data = round_df(l@data, 5)
+#l@data = round_df(l@data, 5)
 l@data <- as.data.frame(l@data) # convert from tibble to data.frame
 # the next line diagnoses missing variables or incorrectly names variables
 # codebook_l$`Variable name`[! codebook_l$`Variable name` %in% names(l)]
 l@data <- l@data[codebook_l$`Variable name`] # fix order and vars kept in l
 zones@data <- zones@data[codebook_z$`Variable name`]
-save_formats(zones, 'z', csv = T)
-save_formats(l, csv = T)
+save_formats(zones, 'z')
+save_formats(l)
 save_formats(rf)
 save_formats(rq)
 save_formats(rnet)
@@ -215,4 +216,3 @@ server_text <- paste0('starting_city <- "', region, '"\n',
                       'source(file.path(shiny_root, "server-base.R"), local = T)')
 write(ui_text, file = file.path(region_dir, "ui.R"))
 write(server_text, file = file.path(region_dir, "server.R"))
-if(!file.exists( file.path(region_dir, "www"))){ file.symlink(file.path("..", "..","www"), region_dir) }
