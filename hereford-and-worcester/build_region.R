@@ -1,9 +1,42 @@
-# region specific build script
+# source("set-up.R") # load packages needed - commented as run in buildmaster
+start_time <- Sys.time() # for timing the script
+
+if(!exists("region")) region <- "cambridgeshire" # create LA name if none exists,  then set-up data repo
+
+if(!file.exists(pct_data)) stop(paste("The pct-data repository cannot be found.  Please clone https://github.com/npct/pct-data in", dirname(getwd())))
+if(!file.exists(pct_bigdata)) stop(paste("The pct-bigdata repository cannot be found.  Please clone https://github.com/npct/pct-bigdata in", dirname(getwd())))
+scens <- c("govtarget_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
+
+# Set local authority and ttwa zone names
+region_path <- file.path(pct_data, region)
+if(!dir.exists(region_path)) dir.create(region_path) # create data directory
+
+params$rft_keep = 0.05 # how aggressively to simplify the route network (higher values - longer to run but rnet less likely to fail)
+if(!exists("ukmsoas")){ # MSOA zones
+  ukmsoas <- readRDS(file.path(pct_bigdata, "ukmsoas-scenarios.Rds"))
+  ukmsoas$avslope = ukmsoas$avslope * 100
+}
+if(!exists("centsa")) # Population-weighted centroids
+  centsa <- readOGR(file.path(pct_bigdata, "cents-scenarios.geojson"), "OGRGeoJSON")
+centsa$geo_code <- as.character(centsa$geo_code)
+
+source('shared_build.R')
+
+# load in codebook data
+codebook_l = readr::read_csv("../pct-shiny/static/codebook_lines.csv")
+codebook_z = readr::read_csv("../pct-shiny/static/codebook_zones.csv")
+
 # select msoas of interest
 if(proj4string(region_shape) != proj4string(centsa))
   region_shape <- spTransform(region_shape, proj4string(centsa))
 cents <- centsa[region_shape,]
 zones <- ukmsoas[ukmsoas@data$geo_code %in% cents$geo_code, ]
+
+# load flow dataset, depending on availability
+if(!exists("flow_nat"))
+  flow_nat <- readRDS(file.path(pct_bigdata, "lines_oneway_shapes_updated.Rds"))
+  flow_nat <- flow_nat[flow_nat$dist > 0,]
+summary(flow_nat$dutch_slc / flow_nat$all)
 
 # Subset by zones in the study area
 o <- flow_nat$msoa1 %in% cents$geo_code
@@ -61,6 +94,28 @@ if(nrow(rf) != nrow(rq)) next()
 rf <- remove_cols(rf, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
 rq <- remove_cols(rq, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
 
+# create rq_increase variable
+rq$rq_incr <- rq$length / rf$length
+
+###########################################
+#Temp error checks
+############################################
+print(paste0("l and rf are equal ",nrow(l) == nrow(rf)))
+'%!in%' <- function(x,y)!('%in%'(x,y))
+allid <- c(rf$id,l$id)
+allid <-allid[!duplicated(allid)]
+compare <- data.frame(id=allid,l=0,rf=0,tot=0)
+for(i in 1:nrow(compare)){
+  if(compare$id[i] %in% l$id){compare$l[i] = 1}
+  if(compare$id[i] %in% rf$id){compare$rf[i] = 1}
+  compare$tot[i] <- compare$l[i] + compare$rf[i]
+}
+compare_sub <- compare[which(compare$tot < 2),]
+write.csv(compare_sub,file.path(pct_data, region, "mismachedlines.csv"))
+
+#############################################
+
+
 # Allocate route characteristics to OD pairs
 l$dist_fast <- rf$length / 1000 # convert m to km
 l$dist_quiet <- rq$length / 1000 # convert m to km
@@ -77,7 +132,7 @@ l$avslope_q <- rq$av_incline * 100
 # see https://github.com/mbloch/mapshaper/wiki/
 rft <- rf
 rft@data <- cbind(rft@data, l@data[c("bicycle", scens)])
-rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = T)
+rft <- ms_simplify(input = rft, keep = params$rft_keep, method = "dp", keep_shapes = TRUE, no_repair = FALSE, snap = TRUE)
 # Stop rnet lines going to centroid (optional)
 # rft <- toptailgs(rf, toptail_dist = params$buff_geo_dist) # commented as failing
 # if(length(rft) == length(rf)){
@@ -110,6 +165,10 @@ rnet@data[rnet$Singlezone == 0, grep(pattern = "upto", names(rnet))] = NA
 if(!"gendereq_slc" %in% scens)
   rnet$gendereq_slc <- NA
 
+
+# create id variable
+rnet$id <- 1:nrow(rnet)
+
 # # # # # # # # #
 # Save the data #
 # # # # # # # # #
@@ -122,14 +181,14 @@ cents@data$avslope <- NULL
 cents@data <- left_join(cents@data, zones@data)
 
 # # Save objects
-l@data = round_df(l@data, 5)
+#l@data = round_df(l@data, 5)
 l@data <- as.data.frame(l@data) # convert from tibble to data.frame
 # the next line diagnoses missing variables or incorrectly names variables
 # codebook_l$`Variable name`[! codebook_l$`Variable name` %in% names(l)]
 l@data <- l@data[codebook_l$`Variable name`] # fix order and vars kept in l
 zones@data <- zones@data[codebook_z$`Variable name`]
-save_formats(zones, 'z', csv = T)
-save_formats(l, csv = T)
+save_formats(zones, 'z')
+save_formats(l)
 save_formats(rf)
 save_formats(rq)
 save_formats(rnet)
