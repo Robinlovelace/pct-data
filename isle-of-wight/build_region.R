@@ -1,4 +1,3 @@
-# source("set-up.R") # load packages needed - commented as run in buildmaster
 start_time <- Sys.time() # for timing the script
 
 if(!exists("region")) region <- "cambridgeshire" # create LA name if none exists,  then set-up data repo
@@ -80,7 +79,6 @@ if(!exists("rq_nat"))
   rq_nat <- readRDS(file.path(pct_bigdata, "msoa", "rq_nat.Rds"))
 rf <- rf_nat[rf_nat$id %in% l$id,]
 rq <- rq_nat[rq_nat$id %in% l$id,]
-if(nrow(rf) != nrow(rq)) next()
 
 # # 3: Create routes on-the-fly, uncomment the next 4 lines:
 # rf = line2route(l = l, route_fun = "route_cyclestreet", plan = "fastest")
