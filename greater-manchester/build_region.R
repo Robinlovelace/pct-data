@@ -1,37 +1,15 @@
-source("set-up.R") # load packages needed
-
-# Create default LA name if none exists
 start_time <- Sys.time() # for timing the script
 
-if(!exists("region")) region <- "cambridgeshire"
-pct_data <- file.path("..", "pct-data")
-pct_bigdata <- file.path("..", "pct-bigdata")
-pct_privatedata <- file.path("..", "pct-privatedata")
-pct_shiny_regions <- file.path("..", "pct-shiny", "regions_www")
+if(!exists("region")) region <- "cambridgeshire" # create LA name if none exists,  then set-up data repo
+
 if(!file.exists(pct_data)) stop(paste("The pct-data repository cannot be found.  Please clone https://github.com/npct/pct-data in", dirname(getwd())))
 if(!file.exists(pct_bigdata)) stop(paste("The pct-bigdata repository cannot be found.  Please clone https://github.com/npct/pct-bigdata in", dirname(getwd())))
 scens <- c("govtarget_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
 
 # Set local authority and ttwa zone names
-region # name of the region
 region_path <- file.path(pct_data, region)
 if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 
-# Minimum flow between od pairs to show. High means fewer lines
-params <- NULL
-
-# OD pair selecion criteria
-# Minimum flow between od pairs to show. High means fewer lines
-params$mflow <- 20
-params$mflow_short <- 20
-params$mdist <- 20 # maximum euclidean distance (km) for subsetting lines
-params$max_all_dist <- 7 # maximum distance (km) below which more lines are selected
-params$buff_dist <- 0 # buffer (km) used to select additional zones (often zero = ok)
-
-# parameters related to the route network
-params$buff_geo_dist <- 100 # buffer (m) for removing line start and end points for network
-# params$min_rnet_length <- 2 # minimum segment length for the Route Network to display (may create holes in rnet)
-params$rft_keep = 0.04
 if(!exists("ukmsoas")){ # MSOA zones
   ukmsoas <- readRDS(file.path(pct_bigdata, "ukmsoas-scenarios.Rds"))
   ukmsoas$avslope = ukmsoas$avslope * 100
@@ -42,10 +20,6 @@ centsa$geo_code <- as.character(centsa$geo_code)
 
 source('shared_build.R')
 
-# load in codebook data
-codebook_l = readr::read_csv("../pct-shiny/static/codebook_lines.csv")
-codebook_z = readr::read_csv("../pct-shiny/static/codebook_zones.csv")
-
 # select msoas of interest
 if(proj4string(region_shape) != proj4string(centsa))
   region_shape <- spTransform(region_shape, proj4string(centsa))
@@ -54,15 +28,13 @@ zones <- ukmsoas[ukmsoas@data$geo_code %in% cents$geo_code, ]
 
 # load flow dataset, depending on availability
 if(!exists("flow_nat"))
-  flow_nat <- readRDS(file.path(pct_bigdata, "lines_oneway_shapes_updated.Rds"))
+  flow_nat <- readRDS(file.path(pct_bigdata, "msoa", "l_nat.Rds"))
   flow_nat <- flow_nat[flow_nat$dist > 0,]
-summary(flow_nat$dutch_slc / flow_nat$all)
 
 # Subset by zones in the study area
 o <- flow_nat$msoa1 %in% cents$geo_code
 d <- flow_nat$msoa2 %in% cents$geo_code
 flow <- flow_nat[o & d, ] # subset OD pairs with o and d in study area
-flow <- flow[!is.na(flow$dutch_slc),] # remove flows with no scenario data
 
 params$n_flow_region <- nrow(flow)
 params$n_commutes_region <- sum(flow$all)
@@ -73,8 +45,6 @@ params$sel_long <- flow$all > params$mflow & flow$dist < params$mdist
 params$sel_short <- flow$dist < params$max_all_dist & flow$all > params$mflow_short
 sel <- params$sel_long | params$sel_short
 flow <- flow[sel, ]
-# summary(flow$dist)
-# l <- od2line(flow = flow, zones = cents)
 l <- flow
 
 # add geo_label of the lines
@@ -97,9 +67,9 @@ params$pmflowa <- round(sum(l$all) / params$n_commutes_region * 100, 1)
 
 # 2: Load routes pre-generated and stored in pct-bigdata
 if(!exists("rf_nat"))
-  rf_nat <- readRDS(file.path(pct_bigdata, "rf_nat.Rds"))
+  rf_nat <- readRDS(file.path(pct_bigdata, "msoa", "rf_nat.Rds"))
 if(!exists("rq_nat"))
-  rq_nat <- readRDS(file.path(pct_bigdata, "rq_nat.Rds"))
+  rq_nat <- readRDS(file.path(pct_bigdata, "msoa", "rq_nat.Rds"))
 rf <- rf_nat[rf_nat$id %in% l$id,]
 rq <- rq_nat[rq_nat$id %in% l$id,]
 if(nrow(rf) != nrow(rq)) next()
@@ -113,6 +83,9 @@ if(nrow(rf) != nrow(rq)) next()
 # Remove unwanted columns from routes
 rf <- remove_cols(rf, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
 rq <- remove_cols(rq, "(waypoint|co2_saving|calories|busyness|plan|start|finish|nv)")
+
+# create rq_increase variable
+rq$rq_incr <- rq$length / rf$length
 
 # Allocate route characteristics to OD pairs
 l$dist_fast <- rf$length / 1000 # convert m to km
@@ -130,7 +103,7 @@ l$avslope_q <- rq$av_incline * 100
 # see https://github.com/mbloch/mapshaper/wiki/
 rft <- rf
 rft@data <- cbind(rft@data, l@data[c("bicycle", scens)])
-rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = T)
+rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = TRUE, no_repair = FALSE, snap = TRUE)
 # Stop rnet lines going to centroid (optional)
 # rft <- toptailgs(rf, toptail_dist = params$buff_geo_dist) # commented as failing
 # if(length(rft) == length(rf)){
@@ -141,18 +114,9 @@ rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = T)
 source("R/generate_rnet.R") # comment out to avoid slow rnet build
 # rnet = readRDS(file.path(pct_data, region, "rnet.Rds")) # uncomment if built
 
-# debug rnet so it is smaller and contains only useful results
-# summary(rnet) # diagnostic check of what it contains
-sel_rnet_zero = rnet$govtarget_slc > 0
-# plot(rnet[!sel_rnet_zero,]) # diagnostic check of the segments with no cyclists
+# diagnostic check of the segments with no cyclists
 # links to: https://github.com/npct/pct-shiny/issues/336
 rnet = rnet[rnet$govtarget_slc > 0,] # remove segments with zero cycling flows
-# # Add maximum amount of interzone flow to rnet
-# create line midpoints (sp::over does not work with lines it seems)
-rnet_osgb <- spTransform(rnet, CRS("+init=epsg:27700"))
-rnet_lengths = gLength(rnet_osgb, byid = T)
-summary(rnet_lengths)
-# rnet = rnet[rnet_lengths > params$min_rnet_length,]
 
 proj4string(rnet) = proj4string(zones)
 
@@ -162,6 +126,9 @@ rnet@data[rnet$Singlezone == 0, grep(pattern = "upto", names(rnet))] = NA
 
 if(!"gendereq_slc" %in% scens)
   rnet$gendereq_slc <- NA
+
+# create id variable
+rnet$id <- 1:nrow(rnet)
 
 # # # # # # # # #
 # Save the data #
@@ -175,14 +142,10 @@ cents@data$avslope <- NULL
 cents@data <- left_join(cents@data, zones@data)
 
 # # Save objects
-l@data = round_df(l@data, 5)
+#l@data = round_df(l@data, 5)
 l@data <- as.data.frame(l@data) # convert from tibble to data.frame
-# the next line diagnoses missing variables or incorrectly names variables
-# codebook_l$`Variable name`[! codebook_l$`Variable name` %in% names(l)]
-l@data <- l@data[codebook_l$`Variable name`] # fix order and vars kept in l
-zones@data <- zones@data[codebook_z$`Variable name`]
-save_formats(zones, 'z', csv = T)
-save_formats(l, csv = T)
+save_formats(zones, 'z')
+save_formats(l)
 save_formats(rf)
 save_formats(rq)
 save_formats(rnet)
@@ -210,4 +173,3 @@ server_text <- paste0('starting_city <- "', region, '"\n',
                       'source(file.path(shiny_root, "server-base.R"), local = T)')
 write(ui_text, file = file.path(region_dir, "ui.R"))
 write(server_text, file = file.path(region_dir, "server.R"))
-if(!file.exists( file.path(region_dir, "www"))){ file.symlink(file.path("..", "..","www"), region_dir) }
