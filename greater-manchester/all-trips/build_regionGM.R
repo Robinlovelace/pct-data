@@ -118,7 +118,7 @@ params$pmflowa <- round(sum(l$all) / params$n_commutes_region * 100, 1)
 # if(!exists("rq_nat"))
 #   rq_nat <- readRDS(file.choose()) # 'C:/temp/pct.releases/rq_nat.Rds')
 # rf <- rf[rf$id %in% l$id,]
-# rq <- rq[rq$id %in% l$id,]
+# rq <- rq[rq$id %in% l$id,]  ; l=l[l$id %in% rf$id, ]
 # if(nrow(rf) != nrow(rq)) next()
 #
 # # Remove national routes
@@ -169,8 +169,8 @@ region <- "greater-manchester"
 # Fix the path to all-trips folder
 region <- "greater-manchester/all-trips"
 
-#source("R/generate_rnet.R") # comment out to avoid slow rnet build
-rnet = readRDS(file.path(pct_data, region, "rnet.Rds")) # uncomment if built
+source("R/generate_rnet.R") # comment out to avoid slow rnet build
+#rnet = readRDS(file.path(pct_data, region, "rnet.Rds")) # uncomment if built
 
 # debug rnet so it is smaller and contains only useful results
 # summary(rnet) # diagnostic check of what it contains
