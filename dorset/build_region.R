@@ -10,7 +10,6 @@ scens <- c("govtarget_slc", "gendereq_slc", "dutch_slc", "ebike_slc")
 region_path <- file.path(pct_data, region)
 if(!dir.exists(region_path)) dir.create(region_path) # create data directory
 
-params$rft_keep = 0.05 # how aggressively to simplify the route network (higher values - longer to run but rnet less likely to fail)
 if(!exists("ukmsoas")){ # MSOA zones
   ukmsoas <- readRDS(file.path(pct_bigdata, "ukmsoas-scenarios.Rds"))
   ukmsoas$avslope = ukmsoas$avslope * 100
@@ -20,12 +19,6 @@ if(!exists("centsa")) # Population-weighted centroids
 centsa$geo_code <- as.character(centsa$geo_code)
 
 source('shared_build.R')
-
-# load in codebook data
-codebook_l = readr::read_csv("../pct-shiny/static/codebook_lines.csv")
-codebook_z = readr::read_csv("../pct-shiny/static/codebook_zones.csv")
-codebook_r = readr::read_csv("../pct-shiny/static/codebook_routes.csv")
-codebook_rnet = readr::read_csv("../pct-shiny/static/codebook_rnet.csv")
 
 # select msoas of interest
 if(proj4string(region_shape) != proj4string(centsa))
@@ -110,7 +103,7 @@ l$avslope_q <- rq$av_incline * 100
 # see https://github.com/mbloch/mapshaper/wiki/
 rft <- rf
 rft@data <- cbind(rft@data, l@data[c("bicycle", scens)])
-rft <- ms_simplify(input = rft, keep = params$rft_keep, method = "dp", keep_shapes = TRUE, no_repair = FALSE, snap = TRUE)
+rft <- ms_simplify(input = rft, keep = params$rft_keep, keep_shapes = TRUE, snap = TRUE)
 # Stop rnet lines going to centroid (optional)
 # rft <- toptailgs(rf, toptail_dist = params$buff_geo_dist) # commented as failing
 # if(length(rft) == length(rf)){
@@ -151,13 +144,6 @@ cents@data <- left_join(cents@data, zones@data)
 # # Save objects
 #l@data = round_df(l@data, 5)
 l@data <- as.data.frame(l@data) # convert from tibble to data.frame
-# the next line diagnoses missing variables or incorrectly names variables
-# codebook_l$`Variable name`[! codebook_l$`Variable name` %in% names(l)]
-l@data <- l@data[codebook_l$`Variable name`] # fix order and vars kept in l
-zones@data <- zones@data[codebook_z$`Variable name`]
-rf@data <- rf@data[codebook_r$`Variable name`]
-rq@data <- rq@data[codebook_r$`Variable name`]
-rnet@data <- rnet@data[codebook_rnet$`Variable name`]
 save_formats(zones, 'z')
 save_formats(l)
 save_formats(rf)
