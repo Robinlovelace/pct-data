@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+<title>Key information</title>
+
+<script type="text/javascript">
+window.onload = function() {
+  var imgs = document.getElementsByTagName('img'), i, img;
+  for (i = 0; i < imgs.length; i++) {
+    img = imgs[i];
+    // center an image if it is the only element of its parent
+    if (img.parentElement.childElementCount === 1)
+      img.parentElement.style.textAlign = 'center';
+  }
+};
+</script>
+
+
+
+
+
+
+
+
+</head>
+
+<body>
+<h2>Key information</h2>
+
+<p>This document provides information about the data underlying the Propensity to Cycle Tool (PCT) for Northumberland. The data were generated on 28/04/2017 and this document was created on 2017-04-28. The PCT is an open source tool for sustainable transport planning, released under the conditions of the 
+<a target="_blank" href="https://www.gnu.org/licenses/agpl-3.0">Affero GPL</a>. Both the <a target="_blank" href="https://github.com/npct/pct">pct</a> and <a target="_blank" href="https://github.com/npct/pct">pct-shiny</a> can be modified by others as long as attribution is made to the original.</p>
+
+<p>This version of the PCT uses origin-destination (OD) data on travel to work from the 2011 Census. The dataset reports the number of people travelling by different modes from Middle Super Output Area zones (<a target = "_black" href = "https://data.gov.uk/dataset/middle-layer-super-output-area-msoa-boundaries">MSOA</a>, average size 3325 commuters). There were 129,493 commuters living in Northumberland recorded in the 2011 Census. All of these are represented in the zones data produced by the PCT.</p>
+
+<p>In Northumberland there are 329 flows between MSOAs that a) start and end in Northumberland, b) have a straight-line (Euclidean) distance of less than 20km and a fast-route distance less than 30km, and c) contain more than 10 commuters (by any mode, counting commuters in both directions).   These 329 between-zone MSOA flows are visualised as <strong>Straight Lines</strong>, <strong>Routes</strong> (fast and quiet) and the <strong>Route Network (MSOA)</strong> on the interactive map, and account for 32% of all commuters living in Northumberland.  In addition, a further 910 <strong>inter-regional flows</strong> of distance less than 20km and containing more than 10 commuters are visualised as Straight Lines and Routes. These inter-regional flows contain an additional 32,750 commuters who either live in Northumberland and work outside, or work in Northumberland and live outside.</p>
+
+<p>Between-zone MSOA flows exclude <strong>within-MSOA travel</strong>, when the MSOA zone of origin is the same as the zone of destination. Within-MSOA travel is represented by red points on the map when the lines are shown, and accounts for 17% of commuters in Northumberland. The between-zone MSOA flows visualised as lines and routes on the map also exclude commuters travelling outside Northumberland and people with no fixed place of work.</p>
+
+<p>A <strong>Route Network (LSOA)</strong> is also available, to complement the MSOA-level lines, routes and route network.  This LSOA (for Lower Super Output Area) route network includes all commuters living in Northumberland and travelling &lt;20km, except for those living and working the same LSOA or having no fixed place of work.  Unlike the MSOA route network, the LSOA route network includes commuters living in Northumberland but working in another region within England. For more details please see User Manual C.</p>
+
+<p>See <a target="_blank" href="https://www.jtlu.org/index.php/jtlu/article/view/862">Lovelace et al. (2017)</a> for details of the methods used to estimate the cycling, health and carbon impacts of each scenario, and to visualise results at the area, line, route and route network level.</p>
+
+<h2>The Northumberland region</h2>
+
+<!-- Can we show hilliness by comparison to other areas?  -->
+
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAfgAAAH4CAMAAACR9g9NAAAAD1BMVEUAAAAAAP8A/wDT09P////mom0SAAAACXBIWXMAAAsSAAALEgHS3X78AAAaO0lEQVR4nO2dibarKgxAU+z/f/M5VYYwCsoQTfZ6677TCQK7QVS08BVYAqsDENYg4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4pki4kMAWPQJi0Y2ADuro5gAhzY2ACKeI2BZHcl4GDSxFsCsDmY4729hLSDiOeKUbzzMv76BdTjt/7Aw//b2VYK0i3hOYO88zL+8ebV43lmYf3frqhHxTAnEMzD/6sbVkxb/5s55c9saCMR/RDwTfPGff95u/sVNawHvxX8OXm7+vS1rAon/Sd9EPBN2yT/Xe67/61efl6/JeG3Dmjgc6zF+gw3U61P+tQ1rAZD4X7qDAjvYr45tFK9tWAPeGZof6vfo5Sn/1nY1EHnffoP9tr075d/arnoS3rV7Ef9mMt5/5l99xP6lzarlk/XujtyujnEML21WJWXvOuVXBzmGlzarDjjx/uax/p2tquTM+5vNv7JRlZx7f/F5+Te2qZIK7y82/8ImVVLl3Zp/XT+9rkG1VHp/rfm3taeWT633t5p/WXNqafD+UvPvak01Ld6R+hf11oua0kD1Bj4y/5r+ek1DWmj2js2/xP07WtFIu3ff/Bvcv6AJzVzx/jr1j29AOxe9b+4Cmze4f3b0V7iwgXfmA/UPtv/YwC9zw/vPfHiXpKfaf2LMt7jlfRf/Tbhf3KgLPDDkW9zzrs2/IeUfGPIdiht4+3xhLdb/Vv6/lO35c/wHhnyHovfd5q69MCQcKb/9XP+uvRHxj6Dg3TwPgB7kxJtu+11o90zvvMSf5HvhIXpBz+92RPwjKG/g4xEg/WZf/GOX3j8x5osUvedSPHFtFTIv4p9A1vuxWc98IeKhAKf8c++e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4UU8BgKrySlZtXna3seP9YTbHoHMAyL7pgcn/PiUp9z2CEiQfdOzvQ9PedKNj6jwfmq+/GE6iHiPU+3fE/NP8S7iA869f/0pHqT3BKh7F/EhVdas+TD5H5PwIv4a0WTgad5F/EXS5p/hfGdwqM/ohCtE5uFR3ken/FN64QJ2TA/8r46rFhF/FedZxMelDyt5PajnHuhdxF/G67nHeR88u3tQRzQTdJyI90ofVTABoo57lPfB5h/VE408LMNjRpp/dMecIOJLZY8plgJP26YnGNiEZ3dMked7H2n+6T1TQMQXSx5RKAleMNJ/B7bi8T2T5RXex5l/QddkEPHlcvsXSYSXiB9l/g1dk+Qdm/gfY1ryiq5J8RrvIl7oiYhniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohniohnyh+GOlHjeYffQAAAAABJRU5ErkJggg==" alt=""/></p>
+
+<p><strong>Figure 1:</strong> Map of the PCT region (thick black border), local authority boundaries (blue line) and zones in the region (grey with a black border). The straight green lines represent the 100 flows with the greatest number of commuters by any mode.</p>
+
+<p>The map below shows the average hilliness of the between-zone routes used by commuters living in each MSOA.
+The average hilliness of the fastest routes in
+Northumberland is
+1.83%,
+compared with a national average of
+2.17%.</p>
+
+<p><img src="data:image/png;base64,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" alt=""/></p>
+
+<p><strong>Figure 2:</strong> Map showing the average hilliness of routes in zones across the study area.</p>
+
+<h2>Cycling levels in each scenario for Northumberland</h2>
+
+<p>The proportion of people who cycled as their main mode of travel to work baseline (2011 Census) data in Northumberland was 
+1.6%, compared to the national average of 3.2%.
+The percentage of cycling expected, based on the distance and hilliness of commutes in the region using the baseline model for England, was
+2.4%.</p>
+
+<p>Summary results for the proportion of people walking, driving and using other modes under each scenario are illustrated in <strong>Table 1</strong>  below.</p>
+
+<table class='model_output_table'><thead>
+<tr>
+<th>Scenario</th>
+<th align="center">% cyclists</th>
+<th align="center">% walking</th>
+<th align="center">% car drivers</th>
+<th align="center">% all other modes</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Census 2011</td>
+<td align="center">1.6 %</td>
+<td align="center">11.4 %</td>
+<td align="center">70.2 %</td>
+<td align="center">16.8 %</td>
+</tr>
+<tr>
+<td>Government Target</td>
+<td align="center">4.0 %</td>
+<td align="center">10.9 %</td>
+<td align="center">68.6 %</td>
+<td align="center">16.5 %</td>
+</tr>
+<tr>
+<td>Gender Equity</td>
+<td align="center">2.8 %</td>
+<td align="center">11.1 %</td>
+<td align="center">69.4 %</td>
+<td align="center">16.7 %</td>
+</tr>
+<tr>
+<td>Go Dutch</td>
+<td align="center">14.3 %</td>
+<td align="center">8.6 %</td>
+<td align="center">62.4 %</td>
+<td align="center">14.7 %</td>
+</tr>
+<tr>
+<td>Ebikes</td>
+<td align="center">21.3 %</td>
+<td align="center">7.7 %</td>
+<td align="center">57.5 %</td>
+<td align="center">13.5 %</td>
+</tr>
+</tbody></table>
+
+<p><br><br></p>
+
+<p>Figure 3 illustrates the overall number of people in between-zone MSOA flows cycling to work under each scenario (note that this does not include within-MSOA travel).</p>
+
+<!--Anna note I think we Ideally should revisit this figure at some point and include within-zone flows, I think it would make the figure much more helpful-->
+
+<p><img src="data:image/png;base64,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" alt=""/></p>
+
+<p><strong>Figure 3:</strong> Number of between-zone commuters within Northumberland cycling by scenario and distance.</p>
+
+<h2>Health and carbon impacts</h2>
+
+<p>A modified version of the 2014 <a target="_blank" href="http://www.euro.who.int/en/health-topics/environment-and-health/Transport-and-health/publications/2011/health-economic-assessment-tools-heat-for-walking-and-for-cycling.-methodology-and-user-guide.-economic-assessment-of-transport-infrastructure-and-policies.-2014-update">HEAT tool</a> was used to calculate health impacts, based on the extra physical activity gained through new cycling trips in each scenario, minus the physical activity displaced in any former walking trips that have now been switched to cycling. CO2 impacts are derived from changes in distance driven per scenario.</p>
+
+<p><strong>Table 2</strong> below illustrates the health and carbon impacts of the different scenarios.  For each scenario, comparisons are made with a counterfactual in which nobody in the region cycled (&#39;No cyclists&#39;), and with the observed level of cycling in the 2011 Census.</p>
+
+<table class='model_output_table'><thead>
+<tr>
+<th>Scenario</th>
+<th align="center">Comparison</th>
+<th align="center">Change in deaths/year</th>
+<th align="center">Value of change ( million pounds )</th>
+<th align="center">Change in tonnes CO2e/year</th>
+</tr>
+</thead><tbody>
+<tr>
+<td>Census 2011</td>
+<td align="center">&#39;No Cyclists&#39;</td>
+<td align="center">-0.83</td>
+<td align="center">1.53</td>
+<td align="center">-517</td>
+</tr>
+<tr>
+<td>Government Target</td>
+<td align="center">&#39;No Cyclists&#39;</td>
+<td align="center">-2.03</td>
+<td align="center">3.76</td>
+<td align="center">-1261</td>
+</tr>
+<tr>
+<td></td>
+<td align="center">Census 2011</td>
+<td align="center">-1.20</td>
+<td align="center">2.23</td>
+<td align="center">-744</td>
+</tr>
+<tr>
+<td>Gender Equity</td>
+<td align="center">&#39;No Cyclists&#39;</td>
+<td align="center">-1.30</td>
+<td align="center">2.40</td>
+<td align="center">-886</td>
+</tr>
+<tr>
+<td></td>
+<td align="center">Census 2011</td>
+<td align="center">-0.47</td>
+<td align="center">0.87</td>
+<td align="center">-369</td>
+</tr>
+<tr>
+<td>Go Dutch</td>
+<td align="center">&#39;No Cyclists&#39;</td>
+<td align="center">-5.07</td>
+<td align="center">9.41</td>
+<td align="center">-3409</td>
+</tr>
+<tr>
+<td></td>
+<td align="center">Census 2011</td>
+<td align="center">-4.25</td>
+<td align="center">7.88</td>
+<td align="center">-2892</td>
+</tr>
+<tr>
+<td>Ebikes</td>
+<td align="center">&#39;No Cyclists&#39;</td>
+<td align="center">-6.52</td>
+<td align="center">12.10</td>
+<td align="center">-6717</td>
+</tr>
+<tr>
+<td></td>
+<td align="center">Census 2011</td>
+<td align="center">-5.69</td>
+<td align="center">10.56</td>
+<td align="center">-6200</td>
+</tr>
+</tbody></table>
+
+<h2>References</h2>
+
+<p>Lovelace, R., Goodman, A., Aldred, R., Berkoff, N., Abbas, A., Woodcock, J., 2017. The Propensity to Cycle Tool: An open source online system for sustainable transport planning. Journal of Transport and Land Use. 10:1, 505&ndash;528, <a target="_blank" href="https://www.jtlu.org/index.php/jtlu/article/view/862">DOI: 10.5198/jtlu.2016.862</a></p>
+
+</body>
+
+</html>
